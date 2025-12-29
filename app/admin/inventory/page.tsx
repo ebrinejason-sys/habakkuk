@@ -52,7 +52,8 @@ export default function InventoryPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [showLowStockAlert, setShowLowStockAlert] = useState(true)
   const [lowStockExpanded, setLowStockExpanded] = useState(false)
-  const [displayCount, setDisplayCount] = useState(20)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [rowsPerPage, setRowsPerPage] = useState(20)
   const { toast } = useToast()
 
   // Debounce search for better INP performance
@@ -70,13 +71,22 @@ export default function InventoryPage() {
     )
   }, [debouncedSearchQuery, products])
 
-  // Paginate: show displayCount items, or all when searching
-  const filteredProducts = useMemo(() => {
-    if (debouncedSearchQuery) return allFilteredProducts
-    return allFilteredProducts.slice(0, displayCount)
-  }, [allFilteredProducts, displayCount, debouncedSearchQuery])
+  // Calculate total pages
+  const totalPages = useMemo(() => {
+    return Math.ceil(allFilteredProducts.length / rowsPerPage)
+  }, [allFilteredProducts.length, rowsPerPage])
 
-  const hasMoreProducts = !debouncedSearchQuery && displayCount < products.length
+  // Paginate: show current page items
+  const filteredProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * rowsPerPage
+    const endIndex = startIndex + rowsPerPage
+    return allFilteredProducts.slice(startIndex, endIndex)
+  }, [allFilteredProducts, currentPage, rowsPerPage])
+
+  // Reset to page 1 when search changes or rows per page changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [debouncedSearchQuery, rowsPerPage])
 
   useEffect(() => {
     fetchProducts()
@@ -113,23 +123,26 @@ export default function InventoryPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Inventory Management</h1>
-          <p className="text-gray-500 mt-2">Manage your pharmacy stock and products</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Inventory Management</h1>
+          <p className="text-gray-500 mt-1 sm:mt-2 text-sm sm:text-base">Manage your pharmacy stock and products</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowUpdateStock(true)}>
-            <PackagePlus className="h-4 w-4 mr-2" />
-            Update Stock
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <Button variant="outline" onClick={() => setShowUpdateStock(true)} className="flex-1 sm:flex-none text-xs sm:text-sm px-2 sm:px-4">
+            <PackagePlus className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Update Stock</span>
+            <span className="sm:hidden">Adjust</span>
           </Button>
-          <Button variant="outline" onClick={() => setShowBulkUpload(true)}>
-            <Upload className="h-4 w-4 mr-2" />
-            Bulk Upload
+          <Button variant="outline" onClick={() => setShowBulkUpload(true)} className="flex-1 sm:flex-none text-xs sm:text-sm px-2 sm:px-4">
+            <Upload className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Bulk Upload</span>
+            <span className="sm:hidden">Bulk</span>
           </Button>
-          <Button onClick={() => setShowCreateDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Product
+          <Button onClick={() => setShowCreateDialog(true)} className="flex-1 sm:flex-none text-xs sm:text-sm px-2 sm:px-4">
+            <Plus className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Add Product</span>
+            <span className="sm:hidden">Add</span>
           </Button>
         </div>
       </div>
@@ -244,8 +257,8 @@ export default function InventoryPage() {
             <div>
               <CardTitle>Products</CardTitle>
               <p className="text-sm text-gray-500 mt-1">
-                Showing {filteredProducts.length} of {debouncedSearchQuery ? allFilteredProducts.length : products.length} products
-                {!debouncedSearchQuery && hasMoreProducts && " • Search or load more to see all"}
+                Showing {filteredProducts.length} of {allFilteredProducts.length} products
+                {debouncedSearchQuery && ` (filtered from ${products.length} total)`}
               </p>
             </div>
             <div className="relative w-64">
@@ -255,7 +268,6 @@ export default function InventoryPage() {
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value)
-                  setDisplayCount(20) // Reset display count when searching
                 }}
                 className="pl-10"
               />
@@ -319,16 +331,74 @@ export default function InventoryPage() {
               ))}
             </TableBody>
           </Table>
-          {hasMoreProducts && (
-            <div className="flex justify-center mt-4 pt-4 border-t">
-              <Button
-                variant="outline"
-                onClick={() => setDisplayCount((prev) => prev + 20)}
+          {/* Pagination Controls */}
+          <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 border-t gap-4">
+            {/* Rows per page selector */}
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <label htmlFor="rowsPerPage">Rows per page:</label>
+              <select
+                id="rowsPerPage"
+                value={rowsPerPage}
+                onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                className="border rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-label="Rows per page"
               >
-                Load More ({products.length - displayCount} remaining)
-              </Button>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
             </div>
-          )}
+
+            {/* Page info and navigation */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">
+                Page {currentPage} of {totalPages || 1}
+              </span>
+              <div className="flex gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="px-2"
+                >
+                  First
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="px-3"
+                >
+                  Prev
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage >= totalPages}
+                  className="px-3"
+                >
+                  Next
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage >= totalPages}
+                  className="px-2"
+                >
+                  Last
+                </Button>
+              </div>
+            </div>
+
+            {/* Total items info */}
+            <div className="text-sm text-gray-600">
+              {allFilteredProducts.length} total items
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
