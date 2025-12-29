@@ -155,24 +155,47 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex items-center h-16 px-4 bg-white/80 backdrop-blur-md border-b shadow-sm lg:px-6">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden hover:bg-gray-100"
-            onClick={() => setIsSidebarOpen(true)}
-          >
-            <Menu className="h-6 w-6" />
-          </Button>
-          <div className="flex-1 lg:ml-0 ml-2">
-            <h1 className="text-xl font-semibold text-gray-900 hidden sm:block">
+        <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 bg-white/80 backdrop-blur-md border-b shadow-sm lg:px-6">
+          {/* Left - Hamburger menu (mobile) */}
+          <div className="flex items-center lg:hidden">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hover:bg-gray-100"
+              onClick={() => setIsSidebarOpen(true)}
+            >
+              <Menu className="h-6 w-6" />
+            </Button>
+          </div>
+
+          {/* Center - Logo on mobile, Page title on desktop */}
+          <div className="flex-1 flex justify-center lg:justify-start lg:ml-0">
+            {/* Mobile: Centered Logo */}
+            <Link href="/admin/dashboard" className="flex items-center space-x-2 lg:hidden">
+              <Image
+                src="/logo.png"
+                alt="Habakkuk"
+                width={36}
+                height={36}
+                className="rounded-lg"
+              />
+              <span className="font-bold text-lg">Habakkuk</span>
+            </Link>
+            {/* Desktop: Page Title */}
+            <h1 className="text-xl font-semibold text-gray-900 hidden lg:block">
               {filteredNavigation.find(item => item.href === pathname)?.name || "Dashboard"}
             </h1>
           </div>
+
+          {/* Right - User info (desktop) */}
           <div className="flex items-center space-x-2">
             <div className="hidden md:flex flex-col items-end">
               <span className="text-sm font-medium text-gray-700">{session?.user.name}</span>
               <span className="text-xs text-gray-500">{session?.user.role}</span>
+            </div>
+            {/* Mobile: User avatar placeholder to balance hamburger */}
+            <div className="lg:hidden w-10">
+              {/* Empty spacer for balance */}
             </div>
           </div>
         </header>
