@@ -135,6 +135,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => signOut({ callbackUrl: "/login" })}
               className="w-full hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-all duration-200">
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out

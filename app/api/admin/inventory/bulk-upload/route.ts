@@ -20,12 +20,17 @@ export async function POST(request: NextRequest) {
     }
 
     const text = await file.text()
+    console.log("File content preview:", text.substring(0, 500))
 
     // Parse CSV
     const results = Papa.parse(text, {
       header: true,
       skipEmptyLines: true,
+      transformHeader: (header: string) => header.trim().toLowerCase(),
     })
+
+    console.log("Parsed headers:", results.meta.fields)
+    console.log("Parsed data count:", results.data.length)
 
     if (!results.data || results.data.length === 0) {
       return NextResponse.json({ error: "No data found in file" }, { status: 400 })
@@ -37,33 +42,44 @@ export async function POST(request: NextRequest) {
     for (const [index, row] of results.data.entries()) {
       const data: any = row
 
-      // Validate required fields
-      if (!data.name || !data.sku || !data.category || !data.price || !data.costPrice || !data.quantity) {
-        errors.push(`Row ${index + 2}: Missing required fields`)
+      // Validate required fields (case-insensitive)
+      const name = data.name || data.Name
+      const sku = data.sku || data.SKU
+      const category = data.category || data.Category
+      const price = data.price || data.Price
+      const costPrice = data.costprice || data.costPrice || data.CostPrice
+      const quantity = data.quantity || data.Quantity
+      const barcode = data.barcode || data.Barcode || null
+      const reorderLevel = data.reorderlevel || data.reorderLevel || data.ReorderLevel
+      const unitOfMeasure = data.unitofmeasure || data.unitOfMeasure || data.UnitOfMeasure || "Unit"
+      const description = data.description || data.Description || null
+
+      if (!name || !sku || !category || !price || !costPrice || !quantity) {
+        errors.push(`Row ${index + 2}: Missing required fields (name: ${!!name}, sku: ${!!sku}, category: ${!!category}, price: ${!!price}, costPrice: ${!!costPrice}, quantity: ${!!quantity})`)
         continue
       }
 
       // Check for duplicate SKU in database
       const existingProduct = await prisma.product.findUnique({
-        where: { sku: data.sku },
+        where: { sku: sku },
       })
 
       if (existingProduct) {
-        errors.push(`Row ${index + 2}: SKU ${data.sku} already exists`)
+        errors.push(`Row ${index + 2}: SKU ${sku} already exists`)
         continue
       }
 
       productsToCreate.push({
-        name: data.name,
-        sku: data.sku,
-        barcode: data.barcode || null,
-        category: data.category,
-        price: parseFloat(data.price),
-        costPrice: parseFloat(data.costPrice),
-        quantity: parseInt(data.quantity),
-        reorderLevel: data.reorderLevel ? parseInt(data.reorderLevel) : 10,
-        unitOfMeasure: data.unitOfMeasure || "Unit",
-        description: data.description || null,
+        name: name,
+        sku: sku,
+        barcode: barcode,
+        category: category,
+        price: parseFloat(price),
+        costPrice: parseFloat(costPrice),
+        quantity: parseInt(quantity),
+        reorderLevel: reorderLevel ? parseInt(reorderLevel) : 10,
+        unitOfMeasure: unitOfMeasure,
+        description: description,
       })
     }
 
