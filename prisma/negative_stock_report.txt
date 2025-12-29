@@ -1,0 +1,316 @@
+HABAKKUK PHARMACY - NEGATIVE STOCK REPORT
+Generated: 2025-12-29T18:36:24.531Z
+Total Items with Negative Stock: 300
+
+====================================================================================================
+SKU         Product Name                                   Quantity  Cost PriceCategory                 
+====================================================================================================
+HAB-00300   DEXONA 0.5MG TABS 10X10                           -8990        1730Other                    
+HAB-00676   METRO COATED                                      -6772          19Other                    
+HAB-00538   KAMADOL TABLETS 100 BLISTER                       -6100          10Other                    
+HAB-00502   IBUROFEN 200 TABS NEW                             -3800          16Other                    
+HAB-00048   AMOXYL CAPS SWT                                   -2870          41Antibiotics              
+HAB-00852   Predinsolone 10x10                                -2440          21Other                    
+HAB-00853   Prednisolin Kpi 10x10                             -2090          20Other                    
+HAB-00340   Doxlyeb 10x10                                     -1684          15Other                    
+HAB-00701   Multivitamin 10x10                                -1520          27Vitamins & Supplements   
+HAB-00307   Dexona Tab 10x10 Zydus                            -1394          18Other                    
+HAB-00750   OMEPERAZOLE 10X10 LOKIT                           -1246         122Other                    
+HAB-00644   Mebendazole 10x10                                 -1150          22Anthelmintics & Antiparasitics
+HAB-00818   PIRICAM 2OMG CAPS 10X10S                          -1090          26Other                    
+HAB-00320   Diclofena 10x10250 Rene                           -1060          11Other                    
+HAB-01047   Vit C 10x10 Kpi New                               -1060          16Vitamins & Supplements   
+HAB-00226   Cetrizine Tab 10x10                               -1050          13Other                    
+HAB-01003   TORACTINE 10X10 TABS 4                             -990          60Other                    
+HAB-00828   Piroxicam 10x10 Z/c N                              -935          26Pain Relief & Anti-inflammatory
+HAB-00749   Omemprazole Cap 10x10                              -910          34Other                    
+HAB-00930   Septrine 10x10 Rene                                -870          36Antibiotics              
+HAB-00301   Dexona 10x10 Z/c                                   -860          19Other                    
+HAB-00363   Erythromycin 10x10 Kpi                             -813         143Antibiotics              
+HAB-00832   PIROXICAM TBS                                      -800          20Pain Relief & Anti-inflammatory
+HAB-00367   ERYTHROMYCIN TABS KPI                              -794         142Antibiotics              
+HAB-00723   Nifidepine 20mg Tbs Cadilla                        -780          30Other                    
+HAB-00188   Cannulla G-24 Yellow IMPT                          -759         437Other                    
+HAB-00078   Aprinox 5mg 10x10                                  -721          56Other                    
+HAB-00687   Metro  Tab F/c 10x10                               -700          21Other                    
+HAB-00811   Phenababiton                                       -685          41Other                    
+HAB-01004   Toractine Tab 10x10                                -680          61Other                    
+HAB-00500   Ibuprofine Kpi 10x10                               -610          21Other                    
+HAB-00825   Piriton Tab 10x10                                  -550          12Antihistamines & Allergy 
+HAB-00727   Nifidipine 20mg Z/c                                -515          30Other                    
+HAB-01008   TORACTIN TBS BLACK                                 -510          59Other                    
+HAB-00191   CARBAMAZEPINE TABS                                 -500          94Antipsychotics & CNS     
+HAB-00534   KAMADOL PLUS TABLETS                               -500          54Other                    
+HAB-00023   Albendazole 400mg                                  -481         320Anthelmintics & Antiparasitics
+HAB-00688   Metro TAb F/c Revive 10x10                         -476          22Other                    
+HAB-00913   Roxone Gm Injection                                -473         700Injectables              
+HAB-00056   AMPICILLIN CAPSULES BP 250MG                       -460          64Antibiotics              
+HAB-00064   AMPICLOX CAPS SWIFT                                -440         115Antibiotics              
+HAB-00757   Omiren 20mg Cap Omez                               -420         280Other                    
+HAB-00808   Pen- V 250 10x10                                   -415          76Other                    
+HAB-00224   Cetrizine 10x10 Rene                               -410          12Other                    
+HAB-00322   Diclofenac 10x10 250                               -410          11Pain Relief & Anti-inflammatory
+HAB-00684   Metronidazole Tablets                              -408          19Antibiotics              
+HAB-00809   PEN V-250 10X10 TAB                                -406          74Other                    
+HAB-00726   NIFIDIPINE 20MG CADILA                             -380          29Other                    
+HAB-00412   Flu Fed 10x10                                      -350          85Other                    
+HAB-00504   IBUROFEN TABS 2                                    -350          18Other                    
+HAB-00543   Kamodium 10x10 Rene                                -350          22Other                    
+HAB-01043   Vit B 10x10 Bicoren                                -300          13Vitamins & Supplements   
+HAB-00655   Mefinal 500-10x10                                  -290         123Other                    
+HAB-00693   Misoprostol Tablet                                 -286         660Gastrointestinal         
+HAB-00136   BENDURIC TABS 10X10'(COSMOS)                       -280          60Other                    
+HAB-00980   SYRINGES 5ML 2                                     -267         125Medical Supplies         
+HAB-00786   PANADOL EXTRA                                      -264         195Other                    
+HAB-00089   Artesunate Inj 60mg  Swift                         -247        1450Antimalarials            
+HAB-00212   Ceftriaxone 1g Tata                                -244         700Antibiotics              
+HAB-00829   Piroxicam Caps Usp 20mg                            -241          28Pain Relief & Anti-inflammatory
+HAB-00042   Amoxileb 250 10x10 Leben                           -231          73Other                    
+HAB-00350   Dynapar 10x10                                      -221          95Other                    
+HAB-00482   Hiv Test Strips                                    -205         950Other                    
+HAB-00447   GLIBECNLAMIDE 10X10 TAB AGOG                       -200          17Other                    
+HAB-00455   Griso                                              -195         217Other                    
+HAB-00680   Metro Iv 100ml                                     -192        1039Other                    
+HAB-00775   PAINEX TAB                                         -190         107Other                    
+HAB-01033   Vacutainer Purple Top                              -182         104Other                    
+HAB-00569   LARTERM NEW                                        -178        1250Other                    
+HAB-00981   Syringes 5ml China IMPT                            -174         140Medical Supplies         
+HAB-00877   Quinine 10x10                                      -160         143Antimalarials            
+HAB-00373   ESOMEPRAZOLE TABS 40MG                             -157         225Gastrointestinal         
+HAB-00479   Hedex 10x10 Gsk                                    -152           2Other                    
+HAB-00035   Amlodac 5mg Tab 3x10                               -150         190Cardiovascular           
+HAB-00407   FLUCAP CAPSULES 100 BLISTER                        -150         105Other                    
+HAB-00409   Fluconazole Cap Kpi                                -150         230Antifungals              
+HAB-00532   Kamadol 10x10                                      -150          14Other                    
+HAB-00942   Sinarest Tabs                                      -150         424Other                    
+HAB-00092   Artmether Inj 80mg                                 -141         442Injectables              
+HAB-01023   Typhoid Test Cassatee                              -131        1043Other                    
+HAB-00327   Diclofenac Sodium 25mg Injection                   -130         146Pain Relief & Anti-inflammatory
+HAB-00724   Nifidepine 20mg Z/c                                -130          30Other                    
+HAB-00057   Ampicilline Cap 10x10 Rene                         -120          65Antibiotics              
+HAB-00145   Betanase 5mg 10x10                                 -120          54Other                    
+HAB-00778   P-Alaxin 40mg/320mg Tablet 1x9                     -119        4521Antimalarials            
+HAB-00602   Lonart New 1x24                                    -117        1995Antimalarials            
+HAB-00729   Nitro 100mg 10x10                                  -114          32Other                    
+HAB-00944   SINURHON TABS                                      -114         710Other                    
+HAB-00977   Syringes 2ml China IMPT                            -113         401Medical Supplies         
+HAB-00645   Mebendazole 10x10 N                                -112        2200Anthelmintics & Antiparasitics
+HAB-00998   Tinidazole 25x4                                    -110          77Other                    
+HAB-00302   Dexona Cadilla 0.5mg                               -108        1825Other                    
+HAB-00967   Surgical Blade 22                                  -104         117Medical Supplies         
+HAB-00013   Action 2x50                                        -100         103Other                    
+HAB-00150   Bisacodyl 5mg                                      -100          14Gastrointestinal         
+HAB-00250   Cloxacilin 250mg Capsules 10x10                    -100          75Other                    
+HAB-00392   FERROUS SULPHATE 200MG                             -100          25Vitamins & Supplements   
+HAB-00404   Flucap 10x10                                       -100         130Other                    
+HAB-00631   Malaria Antigen Rapid Test Strips                  -100         900Other                    
+HAB-00662   Menthoxyl 50x2 Blue                                -100           8Other                    
+HAB-00677   Metro Coated 2                                     -100          19Other                    
+HAB-00940   SINAREST 50X4 L                                    -100         109Other                    
+HAB-01041   Vit B 10x10Becoren                                 -100          13Vitamins & Supplements   
+HAB-00567   LARTERM 20/120 TAB 1X24                             -95        1300Other                    
+HAB-01046   Vit C 10x10 Kpi                                     -92          17Vitamins & Supplements   
+HAB-00214   Ceftriaxone + Salbutamol                            -91        2189Antibiotics              
+HAB-00020   Ago Plus 480mg 10x10                                -88         322Other                    
+HAB-00209   CEFIXIME 400MG TABS 10X10                           -87         710Antibiotics              
+HAB-00021   AGOPLUS CAPS                                        -80         630Other                    
+HAB-00288   D-Artepp                                            -76        5474Other                    
+HAB-00203   CEFALEXIN CAPSULES B.P.                             -70          98Other                    
+HAB-00425   Fulvin 500mg  Tabs 10x10s                           -70         218Other                    
+HAB-00608   Losarc H 3x10 Zydus                                 -70         387Other                    
+HAB-00186   Cannula Yellow 24g                                  -69         377Medical Supplies         
+HAB-00281   Curamol Tab 50x2                                    -69         101Other                    
+HAB-00121   Azithromycin 500mg Tabs Rene                        -61         460Antibiotics              
+HAB-00654   Mefenamic 500mg Tab 10x10                           -60         106Other                    
+HAB-00859   Pregatas 75 3x10 INTAS                              -60           0Other                    
+HAB-00612   Lydia Contracepitive Inj                            -58        2300Injectables              
+HAB-00380   Examination Gloves M                                -55       13500Medical Supplies         
+HAB-00476   Headaid 10x10                                       -52          80Other                    
+HAB-00100   Atenlol 50mg                                        -50          28Other                    
+HAB-00385   Face Mask                                           -50         220Medical Supplies         
+HAB-00843   Plaster Roll 10cm                                   -50        3303Medical Supplies         
+HAB-00969   Surgical Gloves 7.5                                 -50         787Medical Supplies         
+HAB-00091   Artmether 80                                        -49           0Other                    
+HAB-00751   Omeperazole Injection                               -49        1800Injectables              
+HAB-00331   Diclo Supp 100mg 1x5                                -47         567Other                    
+HAB-00027   Alwo-100 ( Albendazole) Susp 20ml                   -45         836Anthelmintics & Antiparasitics
+HAB-00316   Diazepam Inj                                        -45         318Injectables              
+HAB-00748   Ofloxacin Tab 200mg                                 -44          88Antibiotics              
+HAB-00236   Cipro 500mg 10x10 Rene                              -42       14668Other                    
+HAB-00874   Pylo-Kit Tablet (CIPLA)                             -42        2594Other                    
+HAB-00111   Avertiso  200mcg Tab 1x10 (Misoprostol)             -40         620Gastrointestinal         
+HAB-00878   QUININE 10X10 TABS                                  -40         139Antimalarials            
+HAB-00114   Azileb 500mg                                        -36        1450Other                    
+HAB-00324   Diclofenac Gel                                      -36        1200Pain Relief & Anti-inflammatory
+HAB-00399   FLUCAMOX CAPS                                       -36        1150Other                    
+HAB-00733   NORMAL SALINE SWT                                   -35        1500Injectables              
+HAB-00087   Artesunate 60ml Gsunate                             -34        1580Antimalarials            
+HAB-00770   Painex 1x100                                        -34         108Other                    
+HAB-00483   H.PYLORI ANTIBODY                                   -33        1000Other                    
+HAB-00028   Alzole 1x2 Rene                                     -32         263Anthelmintics & Antiparasitics
+HAB-00280   CURAMOL PLUS TAB                                    -32         102Other                    
+HAB-00499   Ibuprofen Tab 10x10                                 -31        1925Pain Relief & Anti-inflammatory
+HAB-00210   CEFIXIME CAPS 400MG 10X10                           -30         690Antibiotics              
+HAB-00227   CHARCOAL TAB 10*10                                  -30          68Other                    
+HAB-00278   CREP BANDAGE 5CM                                    -30         667Medical Supplies         
+HAB-00372   Esomeprazole 20mg 10x10                             -30         140Gastrointestinal         
+HAB-00632   Malaria Test Cassette(Sidak)                        -30         869Other                    
+HAB-00671   Methyldopa 250mg 10x10                              -30         185Other                    
+HAB-00909   Rotramic 500tab 1x10                                -30        1612Other                    
+HAB-00799   PELOX 10*10                                         -28       26500Other                    
+HAB-00846   PLASTIC ENVELOPES IMPT                              -28        1314Other                    
+HAB-00535   Kamadol Tab 10x10 Kpi New                           -27        1392Other                    
+HAB-00357   Eno 1x48 Gsk                                        -26         469Other                    
+HAB-00463   G.V Paint                                           -26        1600Other                    
+HAB-00681   Metro Leb 125 Susp                                  -26        1393Other                    
+HAB-00939   Sinarest 50x4                                       -26         115Other                    
+HAB-00443   Gentamycin Eye & Ear Drop                           -25         723Eye & ENT                
+HAB-00481   Hiv Test Strip New                                  -25        1000Other                    
+HAB-00083   ARTESUNATE 60MG INJ.                                -24        1450Antimalarials            
+HAB-00598   Lonart 1x24                                         -24          84Antimalarials            
+HAB-00657   MENTHO PLUS 2                                       -24        1250Other                    
+HAB-01071   Zecuf Tab Orange                                    -24         155Other                    
+HAB-00131   Bandange 5cm                                        -21         617Other                    
+HAB-00777   PALAXIN 1X9 Z                                       -21        6800Other                    
+HAB-00838   Plaster 2.5cm                                       -21        1086Medical Supplies         
+HAB-00851   Pred 10x10 Dawa                                     -21        2000Other                    
+HAB-00509   Indocid 10x10                                       -20          30Other                    
+HAB-00575   Levobact 500mg 1x10                                 -20        4017Other                    
+HAB-00587   Ligaba 75mg 3x10                                    -20        1000Other                    
+HAB-00601   Lonart. Gvs 1x24 N                                  -20           0Antimalarials            
+HAB-00215   CEFTRIAZONE 1G INJ.                                 -19         710Injectables              
+HAB-00571   Lartrm                                              -19        1516Other                    
+HAB-00622   MAGNESIUM MIXTURE 200ML                             -19        2200Other                    
+HAB-00686   Metrosim 200mg Tablet 10x10 (Africure)              -18        1858Other                    
+HAB-01055   X-Pen Inj N                                         -18         310Injectables              
+HAB-00467   Haemo Forte  200ml                                  -17        6700Other                    
+HAB-00560   LANPRO CAPS 30MG 5X2X10                             -16         290Other                    
+HAB-00776   P-Alaxin 1x9                                        -16         767Antimalarials            
+HAB-00793   Paper Envelopes                                     -16         160Other                    
+HAB-00228   Charcoal Tab 10x10                                  -15         115Other                    
+HAB-00329   Diclofenac Tab 10*10                                -15        1060Pain Relief & Anti-inflammatory
+HAB-00616   Lydia Post Pil 1.5mg 1x1                            -15        1600Other                    
+HAB-00884   Quinine Inj New                                     -15         800Antimalarials            
+HAB-00886   Quinine Mixture 100ml Mp                            -15        2275Antimalarials            
+HAB-00068   AMPICLOX SYRUP 1                                    -14        2150Antibiotics              
+HAB-00245   Clotrimaole Pessaries                               -14        1292Other                    
+HAB-00441   Gentamycin Eye and Ear Drop                         -14         600Eye & ENT                
+HAB-00615   Lydia Fine (Pilplan)                                -14        1300Other                    
+HAB-00679   Metro Iv                                            -14         950Other                    
+HAB-00689   Metro U/c 10x10                                     -14         266Other                    
+HAB-00864   Pritex Junior 60ml                                  -14        3100Other                    
+HAB-00891   Relcer Gel 100                                      -14        4850Other                    
+HAB-00305   Dexona Eye Drop Z/c                                 -13        2053Eye & ENT                
+HAB-00040   Amloozar H                                          -12        1467Cardiovascular           
+HAB-00197   Cathiter G 18                                       -12        1500Other                    
+HAB-00213   Ceftriaxone Cadilla Inj 1g                          -12         906Antibiotics              
+HAB-00514   Iodine Tincture 22ml                                -12        1407Other                    
+HAB-00530   KABUTI SYRUO                                        -12        2800Other                    
+HAB-00767   PA 12 1000mg 1x120                                  -12         354Other                    
+HAB-00957   Starvlon                                            -12        2099Antiretrovirals          
+HAB-00043   Amoxyl 100ml Z/c                                    -11        1400Antibiotics              
+HAB-00358   Epicephin 1g                                        -11       10729Other                    
+HAB-00585   Lidocaine 2% Injection 30ml                         -11        1300Injectables              
+HAB-00781   Palaxin  Tabs 1x9                                   -11        6500Other                    
+HAB-00931   Septrine 480mg 10x10                                -11        3656Antibiotics              
+HAB-00143   Betaderm N 15g New                                  -10        2700Other                    
+HAB-00195   Cathiter G 162way                                   -10        1500Other                    
+HAB-00495   Hyrocortisone Inj N                                 -10         900Injectables              
+HAB-00798   PEDIVIT FORTE CAPSULES                              -10         260Other                    
+HAB-00902   Renegel Syrup 100ml                                 -10        1634Other                    
+HAB-00223   Cetriaxone 1g Ing Tata                               -9         800Other                    
+HAB-00766   OXYTOCIN INJECTION BP 10                             -9         850Injectables              
+HAB-00826   Piriton Tablet 10x10                                 -9        1124Antihistamines & Allergy 
+HAB-00937   Septrin Syp                                          -9        1447Antibiotics              
+HAB-00118   Aziriv-200mg/5ml Syrup 15ml( East Africa)            -8        1600Other                    
+HAB-00734   Norma Saline 5%                                      -8        1640Other                    
+HAB-00765   OXYTOCIN INJECTION B.P                               -8         900Injectables              
+HAB-00819   Piritex Baby 60ml                                    -8        2850Other                    
+HAB-01061   Zaha 200mg/5ml Syrup 15ml                            -8        8250Other                    
+HAB-00297   Dexa Inj                                             -7        1316Injectables              
+HAB-00437   GENTA EYE DROP                                       -7         550Eye & ENT                
+HAB-00555   Kiss                                                 -7       16000Other                    
+HAB-00073   Apflu 100ml Ajanta                                   -6        3547Other                    
+HAB-00077   Aprazole Plus Powder 1x20                            -6        7632Other                    
+HAB-00081   Artesunate 320mg Injection(Royal)                    -6        1450Antimalarials            
+HAB-00082   ARTESUNATE 60MG IN                                   -6        1470Antimalarials            
+HAB-00115   AZIMAX-500MG 1                                       -6        1200Other                    
+HAB-00246   CLOTRIMAZOLE CREAM                                   -6         650Antifungals              
+HAB-00527   KABUTI                                               -6        2930Other                    
+HAB-00531   Kabuuti 100ml                                        -6        7369Other                    
+HAB-00714   Neuroton 2x10                                        -6         590Other                    
+HAB-00802   Penegra 100mg                                        -6        3750Other                    
+HAB-00125   Bactoclav 625                                        -5        8400Other                    
+HAB-00207   Cefixime 200mg DT Tab                                -5         360Antibiotics              
+HAB-00303   DEXONA EYE DROP 1                                    -5        1900Eye & ENT                
+HAB-00311   Dextrose 50%                                         -5        2900Injectables              
+HAB-00365   ERYTHROMYCIN SYRUP LIQUID                            -5        2650Antibiotics              
+HAB-00474   H.C.G TTk                                            -5         150Other                    
+HAB-00619   LYDIA POSTPILL EMERGENCY                             -5        1550Other                    
+HAB-00685   Metro Revive 10x10                                   -5        2050Other                    
+HAB-00731   Normal Saline                                        -5         300Injectables              
+HAB-00840   Plaster 3" 7.5cm                                     -5        2300Medical Supplies         
+HAB-01009   Tramadol Injection                                   -5         600Pain Relief & Anti-inflammatory
+HAB-00007   Acepar 1x10                                          -4        2500Pain Relief & Anti-inflammatory
+HAB-00033   Amlodac 10mg 3x10                                    -4       11800Cardiovascular           
+HAB-00349   DUO- COTEXIN 1X8                                     -4       10700Other                    
+HAB-00722   Nifela Retard 20mg Tablet 10x10                      -4        3000Other                    
+HAB-00865   PROBETA-N                                            -4        3200Other                    
+HAB-00867   Probeta-N 7.5ml                                      -4        3335Other                    
+HAB-00892   Relcer Gel 100ml                                     -4        4862Other                    
+HAB-01036   Vicryl No.2                                          -4       29000Other                    
+HAB-01068   Zecuf Lozengers 5x4 Herbal                           -4         155Other                    
+HAB-00154   Bisoprolol 5mg 3x10                                  -3       14000Cardiovascular           
+HAB-00274   Cough Linctus 1ltr                                   -3        2273Respiratory              
+HAB-00433   Gauze Bandage 90cm x 100YDS                          -3       28800Medical Supplies         
+HAB-00484   H.Pylori Strips 1x50                                 -3         992Other                    
+HAB-00566   Lartem A/L TAB 1X24                                  -3        7105Other                    
+HAB-00658   MENTHO PLUS 3 INH                                    -3        1230Other                    
+HAB-00894   Relcer Gel 170ml                                     -3        7400Other                    
+HAB-00932   SEPTRINE 60ML (L-TRIME)                              -3         860Antibiotics              
+HAB-00006   ACEPAR 1*10                                          -2        2300Pain Relief & Anti-inflammatory
+HAB-00026   ALCID SYRUP                                          -2        4700Gastrointestinal         
+HAB-00273   Cotton Wool 50gm Carex                               -2        1350Medical Supplies         
+HAB-00309   Dextrose 5%                                          -2        1621Injectables              
+HAB-00638   Mardagra 50mg Tablet 1x4                             -2        1200Other                    
+HAB-00672   Methyldopa 25mg                                      -2       18800Other                    
+HAB-00675   Metro 5mg\ml Infusion 100ml [Abaris]                 -2        1050Other                    
+HAB-00753   Omeprazole 10x10 Lokit 20mg                          -2        3223Gastrointestinal         
+HAB-00755   OMEPRAZOLE INJ.40MG                                  -2        1700Gastrointestinal         
+HAB-00816   Phloro G 80mg Tab                                    -2       12000Other                    
+HAB-00841   PLASTER 7.5CM                                        -2        2350Medical Supplies         
+HAB-00903   Reniron 200ml                                        -2        5000Vitamins & Supplements   
+HAB-00959   Stethoscope                                          -2        5500Medical Supplies         
+HAB-01005   Toractin Syrup 200ml                                 -2        6700Other                    
+HAB-01060   Zaha 15mls Ajanta                                    -2        4065Other                    
+HAB-01066   Zecuf 100ml Syrup                                    -2        2921Other                    
+HAB-00030   Aminophylline Inj                                    -1        1200Respiratory              
+HAB-00076   Apprinox 5mg Tablet                                  -1        5620Other                    
+HAB-00084   ARTESUNATE 60MG  INJ.2                               -1        1400Antimalarials            
+HAB-00094   Ascoril 100ml                                        -1        6037Other                    
+HAB-00160   B.P Machine Dial                                     -1       17000Other                    
+HAB-00184   Cannula Pink                                         -1         400Medical Supplies         
+HAB-00268   COTTON WOOL 200 CAREX                                -1        3200Medical Supplies         
+HAB-00271   Cotton Wool 500                                      -1        6800Medical Supplies         
+HAB-00342   DRAGON LIQUID BALM                                   -1        3300Other                    
+HAB-00377   EXAMINATION GLOVES 1                                 -1       10000Medical Supplies         
+HAB-00379   EXAMINATION GLOVES LEBON                             -1       12200Medical Supplies         
+HAB-00381   EXAMINATION GLOVES MEDIUM                            -1       12200Medical Supplies         
+HAB-00384   EXAMINATION GLOVES (R) NEW                           -1       12232Medical Supplies         
+HAB-00434   Gauze Roll 1kg Big                                   -1       29500Medical Supplies         
+HAB-00453   Good Morning Syrup                                   -1        3000Other                    
+HAB-00700   MUCOLEX  EXPECTORANT                                 -1        3750Other                    
+HAB-00844   Plastic Envelopes                                    -1       19500Other                    
+HAB-00876   Quinine 100ml Rene                                   -1        2450Antimalarials            
+HAB-00893   Relcer Gel 170                                       -1       25800Other                    
+HAB-01006   Toractin Tablet 10x10                                -1        6100Other                    
+HAB-01070   ZECUF SYRUP                                          -1        2550Other                    
+
+====================================================================================================
+TOTAL NEGATIVE VALUE: -29,031,937 UGX
+
+ACTION REQUIRED:
+- Review each item and determine correct stock levels
+- Check for sales that were not properly recorded
+- Verify against physical stock count
+- Adjust stock levels in the system after verification

@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
       }),
       // Get recent activity logs
       prisma.auditLog.findMany({
-        take: 20,
+        take: 8,
         orderBy: { createdAt: 'desc' },
         include: {
           user: {
