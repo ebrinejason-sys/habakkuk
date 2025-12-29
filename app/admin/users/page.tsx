@@ -193,7 +193,7 @@ interface CreateUserDialogProps {
 function CreateUserDialog({ onClose, onSuccess }: CreateUserDialogProps) {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
-  const [role, setRole] = useState<"ADMIN" | "STAFF">("STAFF")
+  const [role, setRole] = useState<"CEO" | "ADMIN" | "STAFF">("STAFF")
   const [permissions, setPermissions] = useState<Permission[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
@@ -290,14 +290,20 @@ function CreateUserDialog({ onClose, onSuccess }: CreateUserDialogProps) {
               <select
                 id="role"
                 value={role}
-                onChange={(e) => setRole(e.target.value as "ADMIN" | "STAFF")}
+                onChange={(e) => setRole(e.target.value as "CEO" | "ADMIN" | "STAFF")}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 disabled={isLoading}
                 title="Select Role"
               >
                 <option value="STAFF">Staff</option>
                 <option value="ADMIN">Admin</option>
+                <option value="CEO">CEO (View Only)</option>
               </select>
+              {role === "CEO" && (
+                <p className="text-xs text-gray-500 mt-1">
+                  CEO role has view access to all areas including dashboard, reports, and activity logs.
+                </p>
+              )}
             </div>
 
             {role === "STAFF" && (
@@ -361,7 +367,7 @@ interface EditUserDialogProps {
 
 function EditUserDialog({ user, onClose, onSuccess }: EditUserDialogProps) {
   const [name, setName] = useState(user.name)
-  const [role, setRole] = useState<"ADMIN" | "STAFF">(user.role as "ADMIN" | "STAFF")
+  const [role, setRole] = useState<"CEO" | "ADMIN" | "STAFF">(user.role as "CEO" | "ADMIN" | "STAFF")
   const [permissions, setPermissions] = useState<Permission[]>(user.permissions)
   const [isActive, setIsActive] = useState(user.isActive)
   const [isLoading, setIsLoading] = useState(false)
@@ -458,14 +464,20 @@ function EditUserDialog({ user, onClose, onSuccess }: EditUserDialogProps) {
               <select
                 id="edit-role"
                 value={role}
-                onChange={(e) => setRole(e.target.value as "ADMIN" | "STAFF")}
+                onChange={(e) => setRole(e.target.value as "CEO" | "ADMIN" | "STAFF")}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 disabled={isLoading}
                 title="Select Role"
               >
                 <option value="STAFF">Staff</option>
                 <option value="ADMIN">Admin</option>
+                <option value="CEO">CEO (View Only)</option>
               </select>
+              {role === "CEO" && (
+                <p className="text-xs text-gray-500 mt-1">
+                  CEO role has view access to all areas including dashboard, reports, and activity logs.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">

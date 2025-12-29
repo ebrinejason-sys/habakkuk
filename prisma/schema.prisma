@@ -151,16 +151,18 @@ model Customer {
 model Order {
   id              String   @id @default(cuid())
   orderNo         String   @unique
-  customerId      String
+  customerId      String?
+  orderType       OrderType @default(CUSTOMER)
   totalAmount     Float
   status          OrderStatus @default(PENDING)
+  paymentStatus   PaymentStatus @default(UNPAID)
   notes           String?
   deliveryAddress String?
   processedBy     String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   
-  customer        Customer @relation(fields: [customerId], references: [id])
+  customer        Customer? @relation(fields: [customerId], references: [id])
   processedByUser User?    @relation(fields: [processedBy], references: [id])
   items           OrderItem[]
   
@@ -170,13 +172,14 @@ model Order {
 model OrderItem {
   id              String   @id @default(cuid())
   orderId         String
-  productId       String
+  productId       String?
+  productName     String
   quantity        Int
   unitPrice       Float
   totalPrice      Float
   
   order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product         Product  @relation(fields: [productId], references: [id])
+  product         Product? @relation(fields: [productId], references: [id])
   
   @@map("order_items")
 }
@@ -197,6 +200,7 @@ model AuditLog {
 }
 
 enum Role {
+  CEO
   ADMIN
   STAFF
 }
@@ -238,4 +242,15 @@ enum OrderStatus {
   READY
   COMPLETED
   CANCELLED
+}
+
+enum OrderType {
+  CUSTOMER
+  SUPPLIER
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
 }

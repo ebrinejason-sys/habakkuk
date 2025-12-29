@@ -47,6 +47,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const hasPermission = (permission?: string) => {
     if (!permission) return true
     if (session?.user.role === "ADMIN") return true
+    if (session?.user.role === "CEO") return true // CEO can view everything
     return session?.user.permissions?.includes(permission as any)
   }
 

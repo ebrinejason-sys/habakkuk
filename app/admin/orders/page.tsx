@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSession } from "next-auth/react"
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -11,27 +12,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
 import { formatCurrency } from "@/lib/utils"
-import { Plus, Search, Eye, CheckCircle, XCircle, Clock, Package, DollarSign } from "lucide-react"
+import { Plus, Search, Eye, CheckCircle, XCircle, Clock, DollarSign, Truck, ShoppingBag, Printer, CreditCard } from "lucide-react"
 
 interface Order {
   id: string
   orderNo: string
+  orderType: string
   totalAmount: number
   status: string
+  paymentStatus: string
   notes?: string
   deliveryAddress?: string
   createdAt: string
-  customer: {
+  customer?: {
     name: string
     email: string
     phone?: string
   }
   items: Array<{
     id: string
+    productName: string
     quantity: number
     unitPrice: number
     totalPrice: number
-    product: {
+    product?: {
       name: string
       sku: string
       unitOfMeasure: string
@@ -47,16 +51,21 @@ interface OrderStats {
   completed: number
   cancelled: number
   totalRevenue: number
+  supplierOrders: number
+  customerOrders: number
 }
 
 export default function OrdersPage() {
+  const { data: session } = useSession()
   const [orders, setOrders] = useState<Order[]>([])
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([])
-  const [stats, setStats] = useState<OrderStats>({ pending: 0, completed: 0, cancelled: 0, totalRevenue: 0 })
+  const [stats, setStats] = useState<OrderStats>({ pending: 0, completed: 0, cancelled: 0, totalRevenue: 0, supplierOrders: 0, customerOrders: 0 })
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
+  const [typeFilter, setTypeFilter] = useState("")
   const [isLoading, setIsLoading] = useState(true)
-  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [showCustomerOrderDialog, setShowCustomerOrderDialog] = useState(false)
+  const [showSupplierOrderDialog, setShowSupplierOrderDialog] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const { toast } = useToast()
 
@@ -71,7 +80,7 @@ export default function OrdersPage() {
       filtered = filtered.filter(
         (order) =>
           order.orderNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          order.customer.name.toLowerCase().includes(searchQuery.toLowerCase())
+          (order.customer?.name && order.customer.name.toLowerCase().includes(searchQuery.toLowerCase()))
       )
     }
 
@@ -79,16 +88,22 @@ export default function OrdersPage() {
       filtered = filtered.filter((order) => order.status === statusFilter)
     }
 
+    if (typeFilter) {
+      filtered = filtered.filter((order) => order.orderType === typeFilter)
+    }
+
     setFilteredOrders(filtered)
-  }, [searchQuery, statusFilter, orders])
+  }, [searchQuery, statusFilter, typeFilter, orders])
 
   const fetchOrders = async () => {
     try {
       const response = await fetch("/api/admin/orders")
       const data = await response.json()
-      setOrders(data.orders)
-      setFilteredOrders(data.orders)
-      setStats(data.stats)
+      if (data.orders && Array.isArray(data.orders)) {
+        setOrders(data.orders)
+        setFilteredOrders(data.orders)
+        setStats(data.stats)
+      }
     } catch (error) {
       toast({
         variant: "destructive",
@@ -157,23 +172,42 @@ export default function OrdersPage() {
     }
   }
 
+  const getPaymentColor = (status: string) => {
+    switch (status) {
+      case "PAID":
+        return "bg-green-100 text-green-700"
+      case "PARTIAL":
+        return "bg-yellow-100 text-yellow-700"
+      case "UNPAID":
+        return "bg-red-100 text-red-700"
+      default:
+        return "bg-gray-100 text-gray-700"
+    }
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Orders Management</h1>
-          <p className="text-gray-500 mt-2">Manage open tabs and customer orders</p>
+          <p className="text-gray-500 mt-2">Manage customer orders and supplier requisitions</p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Order
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowSupplierOrderDialog(true)}>
+            <Truck className="h-4 w-4 mr-2" />
+            Supplier Requisition
+          </Button>
+          <Button onClick={() => setShowCustomerOrderDialog(true)}>
+            <ShoppingBag className="h-4 w-4 mr-2" />
+            Customer Order
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Pending Orders</CardTitle>
+            <CardTitle className="text-sm font-medium">Pending</CardTitle>
             <Clock className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
@@ -200,20 +234,48 @@ export default function OrdersPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-purple-600" />
+            <CardTitle className="text-sm font-medium">Customer Orders</CardTitle>
+            <ShoppingBag className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
+            <div className="text-2xl font-bold">{stats.customerOrders}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Supplier Orders</CardTitle>
+            <Truck className="h-4 w-4 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.supplierOrders}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
           </CardContent>
         </Card>
       </div>
 
-      {showCreateDialog && (
-        <CreateOrderDialog
-          onClose={() => setShowCreateDialog(false)}
+      {showCustomerOrderDialog && (
+        <CustomerOrderDialog
+          onClose={() => setShowCustomerOrderDialog(false)}
           onSuccess={() => {
-            setShowCreateDialog(false)
+            setShowCustomerOrderDialog(false)
+            fetchOrders()
+          }}
+        />
+      )}
+
+      {showSupplierOrderDialog && (
+        <SupplierOrderDialog
+          onClose={() => setShowSupplierOrderDialog(false)}
+          onSuccess={() => {
+            setShowSupplierOrderDialog(false)
             fetchOrders()
           }}
         />
@@ -224,29 +286,39 @@ export default function OrdersPage() {
           order={selectedOrder}
           onClose={() => setSelectedOrder(null)}
           onStatusChange={handleStatusChange}
+          onRefresh={fetchOrders}
         />
       )}
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <CardTitle>Orders ({filteredOrders.length})</CardTitle>
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-2">
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                title="Filter by Type"
+                aria-label="Filter by Type"
+              >
+                <option value="">All Types</option>
+                <option value="CUSTOMER">Customer Orders</option>
+                <option value="SUPPLIER">Supplier Requisitions</option>
+              </select>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                title="Filter by Status"
+                aria-label="Filter by Status"
+              >
+                <option value="">All Status</option>
+                <option value="PENDING">Pending</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
               <div className="relative w-48">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  title="Filter by Status"
-                  aria-label="Filter by Status"
-                >
-                  <option value="">All Status</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="CANCELLED">Cancelled</option>
-                </select>
-              </div>
-              <div className="relative w-64">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search orders..."
@@ -263,9 +335,11 @@ export default function OrdersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Order #</TableHead>
-                <TableHead>Customer</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Customer/Supplier</TableHead>
                 <TableHead>Items</TableHead>
                 <TableHead>Amount</TableHead>
+                <TableHead>Payment</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -276,13 +350,28 @@ export default function OrdersPage() {
                 <TableRow key={order.id}>
                   <TableCell className="font-medium">{order.orderNo}</TableCell>
                   <TableCell>
-                    <div>
-                      <div className="font-medium">{order.customer.name}</div>
-                      <div className="text-xs text-gray-500">{order.customer.email}</div>
-                    </div>
+                    <span className={`px-2 py-1 text-xs rounded-full ${order.orderType === 'CUSTOMER' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                      {order.orderType === 'CUSTOMER' ? <ShoppingBag className="h-3 w-3 inline mr-1" /> : <Truck className="h-3 w-3 inline mr-1" />}
+                      {order.orderType}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {order.orderType === 'CUSTOMER' && order.customer ? (
+                      <div>
+                        <div className="font-medium">{order.customer.name}</div>
+                        <div className="text-xs text-gray-500">{order.customer.phone || order.customer.email}</div>
+                      </div>
+                    ) : (
+                      <span className="text-gray-500">Supplier Order</span>
+                    )}
                   </TableCell>
                   <TableCell>{order.items.length} items</TableCell>
                   <TableCell className="font-semibold">{formatCurrency(order.totalAmount)}</TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 text-xs rounded-full ${getPaymentColor(order.paymentStatus)}`}>
+                      {order.paymentStatus}
+                    </span>
+                  </TableCell>
                   <TableCell>
                     <span className={`px-2 py-1 text-xs rounded-full flex items-center gap-1 w-fit ${getStatusColor(order.status)}`}>
                       {getStatusIcon(order.status)}
@@ -298,24 +387,6 @@ export default function OrdersPage() {
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
-                    {order.status === "PENDING" && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleStatusChange(order.id, "COMPLETED")}
-                        >
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleStatusChange(order.id, "CANCELLED")}
-                        >
-                          <XCircle className="h-4 w-4 text-red-600" />
-                        </Button>
-                      </>
-                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -327,19 +398,23 @@ export default function OrdersPage() {
   )
 }
 
-interface CreateOrderDialogProps {
+interface CustomerOrderDialogProps {
   onClose: () => void
   onSuccess: () => void
 }
 
-function CreateOrderDialog({ onClose, onSuccess }: CreateOrderDialogProps) {
+function CustomerOrderDialog({ onClose, onSuccess }: CustomerOrderDialogProps) {
   const [customers, setCustomers] = useState<any[]>([])
   const [products, setProducts] = useState<any[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState("")
-  const [orderItems, setOrderItems] = useState<Array<{ productId: string; quantity: number }>>([])
+  const [customerName, setCustomerName] = useState("")
+  const [customerPhone, setCustomerPhone] = useState("")
+  const [orderItems, setOrderItems] = useState<Array<{ productId: string; productName: string; quantity: number; unitPrice: number }>>([])
   const [notes, setNotes] = useState("")
   const [deliveryAddress, setDeliveryAddress] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [productSearch, setProductSearch] = useState("")
+  const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -348,19 +423,27 @@ function CreateOrderDialog({ onClose, onSuccess }: CreateOrderDialogProps) {
   }, [])
 
   const fetchCustomers = async () => {
-    const response = await fetch("/api/admin/customers")
-    const data = await response.json()
-    setCustomers(data)
+    try {
+      const response = await fetch("/api/admin/customers")
+      const data = await response.json()
+      if (Array.isArray(data)) setCustomers(data)
+    } catch (error) {
+      console.error("Failed to fetch customers:", error)
+    }
   }
 
   const fetchProducts = async () => {
-    const response = await fetch("/api/admin/inventory")
-    const data = await response.json()
-    setProducts(data.filter((p: any) => p.quantity > 0))
+    try {
+      const response = await fetch("/api/admin/inventory")
+      const data = await response.json()
+      if (Array.isArray(data)) setProducts(data.filter((p: any) => p.quantity > 0))
+    } catch (error) {
+      console.error("Failed to fetch products:", error)
+    }
   }
 
   const addItem = () => {
-    setOrderItems([...orderItems, { productId: "", quantity: 1 }])
+    setOrderItems([...orderItems, { productId: "", productName: "", quantity: 1, unitPrice: 0 }])
   }
 
   const removeItem = (index: number) => {
@@ -370,17 +453,33 @@ function CreateOrderDialog({ onClose, onSuccess }: CreateOrderDialogProps) {
   const updateItem = (index: number, field: string, value: any) => {
     const updated = [...orderItems]
     updated[index] = { ...updated[index], [field]: value }
+    
+    if (field === "productId") {
+      const product = products.find(p => p.id === value)
+      if (product) {
+        updated[index].productName = product.name
+        updated[index].unitPrice = product.price
+      }
+    }
+    
     setOrderItems(updated)
   }
+
+  const filteredProducts = products.filter(p => 
+    p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+    p.sku.toLowerCase().includes(productSearch.toLowerCase())
+  )
+
+  const totalAmount = orderItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!selectedCustomer || orderItems.length === 0) {
+    if ((!selectedCustomer && !customerName) || orderItems.length === 0) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Please select customer and add at least one item",
+        description: "Please provide customer info and add at least one item",
       })
       return
     }
@@ -392,8 +491,16 @@ function CreateOrderDialog({ onClose, onSuccess }: CreateOrderDialogProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customerId: selectedCustomer,
-          items: orderItems,
+          customerId: selectedCustomer || null,
+          customerName: customerName,
+          customerPhone: customerPhone,
+          orderType: "CUSTOMER",
+          items: orderItems.map(item => ({
+            productId: item.productId,
+            productName: item.productName,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+          })),
           notes,
           deliveryAddress,
         }),
@@ -402,7 +509,7 @@ function CreateOrderDialog({ onClose, onSuccess }: CreateOrderDialogProps) {
       if (response.ok) {
         toast({
           title: "Success",
-          description: "Order created successfully",
+          description: "Customer order created successfully",
         })
         onSuccess()
       } else {
@@ -426,31 +533,64 @@ function CreateOrderDialog({ onClose, onSuccess }: CreateOrderDialogProps) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+      <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <CardHeader>
-          <CardTitle>Create New Order</CardTitle>
+          <CardTitle className="flex items-center">
+            <ShoppingBag className="h-5 w-5 mr-2" />
+            Create Customer Order (Call-in)
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="customer">Customer *</Label>
-              <select
-                id="customer"
-                value={selectedCustomer}
-                onChange={(e) => setSelectedCustomer(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                required
-                title="Select Customer"
-              >
-                <option value="">Select Customer</option>
-                {customers.map((customer) => (
-                  <option key={customer.id} value={customer.id}>
-                    {customer.name} - {customer.email}
-                  </option>
-                ))}
-              </select>
+            {/* Customer Selection */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="customer">Select Existing Customer</Label>
+                <select
+                  id="customer"
+                  value={selectedCustomer}
+                  onChange={(e) => setSelectedCustomer(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  title="Select Customer"
+                >
+                  <option value="">-- Or enter new customer below --</option>
+                  {customers.map((customer) => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.name} - {customer.phone || customer.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>OR New Customer Name</Label>
+                <Input
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder="Customer name"
+                  disabled={!!selectedCustomer}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Customer Phone</Label>
+                <Input
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  placeholder="Phone number"
+                  disabled={!!selectedCustomer}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="deliveryAddress">Delivery Address</Label>
+                <Input
+                  id="deliveryAddress"
+                  value={deliveryAddress}
+                  onChange={(e) => setDeliveryAddress(e.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
             </div>
 
+            {/* Order Items with Search */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Order Items *</Label>
@@ -459,34 +599,72 @@ function CreateOrderDialog({ onClose, onSuccess }: CreateOrderDialogProps) {
                   Add Item
                 </Button>
               </div>
+              
               {orderItems.map((item, index) => (
-                <div key={index} className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <select
-                      value={item.productId}
-                      onChange={(e) => updateItem(index, "productId", e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      required
-                      title="Select Product"
-                      aria-label="Select Product"
-                    >
-                      <option value="">Select Product</option>
-                      {products.map((product) => (
-                        <option key={product.id} value={product.id}>
-                          {product.name} - {formatCurrency(product.price)} (Stock: {product.quantity})
-                        </option>
-                      ))}
-                    </select>
+                <div key={index} className="flex gap-2 items-end border p-3 rounded-lg">
+                  <div className="flex-1 relative">
+                    <Label className="text-xs">Product (search by name or SKU)</Label>
+                    <Input
+                      placeholder="Search products..."
+                      value={showProductDropdown === index ? productSearch : item.productName}
+                      onChange={(e) => {
+                        setProductSearch(e.target.value)
+                        setShowProductDropdown(index)
+                      }}
+                      onFocus={() => {
+                        setShowProductDropdown(index)
+                        setProductSearch(item.productName)
+                      }}
+                    />
+                    {showProductDropdown === index && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        {filteredProducts.length === 0 ? (
+                          <div className="p-2 text-gray-500 text-sm">No products found</div>
+                        ) : (
+                          filteredProducts.slice(0, 10).map((product) => (
+                            <button
+                              key={product.id}
+                              type="button"
+                              className="w-full text-left p-2 hover:bg-gray-100 text-sm"
+                              onClick={() => {
+                                updateItem(index, "productId", product.id)
+                                setShowProductDropdown(null)
+                                setProductSearch("")
+                              }}
+                            >
+                              <div className="font-medium">{product.name}</div>
+                              <div className="text-xs text-gray-500">
+                                {formatCurrency(product.price)} | Stock: {product.quantity}
+                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div className="w-24">
+                  <div className="w-20">
+                    <Label className="text-xs">Qty</Label>
                     <Input
                       type="number"
                       min="1"
                       value={item.quantity}
-                      onChange={(e) => updateItem(index, "quantity", parseInt(e.target.value))}
-                      placeholder="Qty"
-                      required
+                      onChange={(e) => updateItem(index, "quantity", parseInt(e.target.value) || 1)}
                     />
+                  </div>
+                  <div className="w-28">
+                    <Label className="text-xs">Price</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={item.unitPrice}
+                      onChange={(e) => updateItem(index, "unitPrice", parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div className="w-28">
+                    <Label className="text-xs">Total</Label>
+                    <div className="h-10 flex items-center font-semibold">
+                      {formatCurrency(item.quantity * item.unitPrice)}
+                    </div>
                   </div>
                   <Button
                     type="button"
@@ -500,13 +678,13 @@ function CreateOrderDialog({ onClose, onSuccess }: CreateOrderDialogProps) {
               ))}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="deliveryAddress">Delivery Address</Label>
-              <Input
-                id="deliveryAddress"
-                value={deliveryAddress}
-                onChange={(e) => setDeliveryAddress(e.target.value)}
-              />
+            {/* Order Total */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="flex justify-between items-center text-lg font-bold">
+                <span>Order Total:</span>
+                <span>{formatCurrency(totalAmount)}</span>
+              </div>
+              <p className="text-sm text-gray-500 mt-1">Payment will be collected when order is completed</p>
             </div>
 
             <div className="space-y-2">
@@ -515,6 +693,7 @@ function CreateOrderDialog({ onClose, onSuccess }: CreateOrderDialogProps) {
                 id="notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
+                placeholder="Special instructions, delivery time, etc."
               />
             </div>
 
@@ -523,8 +702,266 @@ function CreateOrderDialog({ onClose, onSuccess }: CreateOrderDialogProps) {
                 Cancel
               </Button>
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Creating..." : "Create Order"}
+                {isLoading ? "Creating..." : "Create Order (Hold)"}
               </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+interface SupplierOrderDialogProps {
+  onClose: () => void
+  onSuccess: () => void
+}
+
+function SupplierOrderDialog({ onClose, onSuccess }: SupplierOrderDialogProps) {
+  const [orderItems, setOrderItems] = useState<Array<{ productName: string; quantity: number; unitPrice: number }>>([
+    { productName: "", quantity: 1, unitPrice: 0 }
+  ])
+  const [notes, setNotes] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const { toast } = useToast()
+
+  const addItem = () => {
+    setOrderItems([...orderItems, { productName: "", quantity: 1, unitPrice: 0 }])
+  }
+
+  const removeItem = (index: number) => {
+    if (orderItems.length > 1) {
+      setOrderItems(orderItems.filter((_, i) => i !== index))
+    }
+  }
+
+  const updateItem = (index: number, field: string, value: any) => {
+    const updated = [...orderItems]
+    updated[index] = { ...updated[index], [field]: value }
+    setOrderItems(updated)
+  }
+
+  const totalAmount = orderItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    const validItems = orderItems.filter(item => item.productName.trim())
+    
+    if (validItems.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please add at least one item",
+      })
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const response = await fetch("/api/admin/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderType: "SUPPLIER",
+          items: validItems.map(item => ({
+            productName: item.productName,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+          })),
+          notes,
+        }),
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Supplier requisition created successfully",
+        })
+        onSuccess()
+      } else {
+        const data = await response.json()
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: data.error || "Failed to create requisition",
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An error occurred",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const printRequisition = () => {
+    const printWindow = window.open("", "", "width=600,height=800")
+    if (!printWindow) return
+
+    const validItems = orderItems.filter(item => item.productName.trim())
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Supplier Requisition</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h1 { text-align: center; }
+          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f4f4f4; }
+          .total { font-weight: bold; font-size: 1.2em; }
+          .footer { margin-top: 30px; }
+        </style>
+      </head>
+      <body onload="window.print(); window.close();">
+        <h1>SUPPLIER REQUISITION</h1>
+        <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+        <p><strong>Requisition No:</strong> REQ-${Date.now()}</p>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Item Description</th>
+              <th>Quantity</th>
+              <th>Est. Unit Price</th>
+              <th>Est. Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${validItems.map((item, i) => `
+              <tr>
+                <td>${i + 1}</td>
+                <td>${item.productName}</td>
+                <td>${item.quantity}</td>
+                <td>${formatCurrency(item.unitPrice)}</td>
+                <td>${formatCurrency(item.quantity * item.unitPrice)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+        
+        <p class="total">Estimated Total: ${formatCurrency(totalAmount)}</p>
+        
+        ${notes ? `<p><strong>Notes:</strong> ${notes}</p>` : ""}
+        
+        <div class="footer">
+          <p>Requested by: ___________________</p>
+          <p>Approved by: ___________________</p>
+          <p>Date: ___________________</p>
+        </div>
+      </body>
+      </html>
+    `
+
+    printWindow.document.write(html)
+    printWindow.document.close()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Truck className="h-5 w-5 mr-2" />
+            Create Supplier Requisition
+          </CardTitle>
+          <p className="text-sm text-gray-500">Request items needed for the pharmacy from suppliers</p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Items Required</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Item
+                </Button>
+              </div>
+              
+              {orderItems.map((item, index) => (
+                <div key={index} className="flex gap-2 items-end border p-3 rounded-lg">
+                  <div className="flex-1">
+                    <Label className="text-xs">Drug/Item Name *</Label>
+                    <Input
+                      value={item.productName}
+                      onChange={(e) => updateItem(index, "productName", e.target.value)}
+                      placeholder="e.g., Paracetamol 500mg, Bandages, etc."
+                      required
+                    />
+                  </div>
+                  <div className="w-24">
+                    <Label className="text-xs">Quantity *</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(e) => updateItem(index, "quantity", parseInt(e.target.value) || 1)}
+                      required
+                    />
+                  </div>
+                  <div className="w-32">
+                    <Label className="text-xs">Est. Unit Price</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={item.unitPrice}
+                      onChange={(e) => updateItem(index, "unitPrice", parseFloat(e.target.value) || 0)}
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeItem(index)}
+                    disabled={orderItems.length === 1}
+                  >
+                    <XCircle className="h-4 w-4 text-red-500" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+
+            {totalAmount > 0 && (
+              <div className="bg-purple-50 p-4 rounded-lg">
+                <div className="flex justify-between items-center text-lg font-bold text-purple-800">
+                  <span>Estimated Total:</span>
+                  <span>{formatCurrency(totalAmount)}</span>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes / Special Instructions</Label>
+              <Input
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Preferred supplier, urgency level, specific brands, etc."
+              />
+            </div>
+
+            <div className="flex justify-between pt-4">
+              <Button type="button" variant="outline" onClick={printRequisition}>
+                <Printer className="h-4 w-4 mr-2" />
+                Print Requisition
+              </Button>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={onClose}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? "Creating..." : "Save Requisition"}
+                </Button>
+              </div>
             </div>
           </form>
         </CardContent>
@@ -537,35 +974,149 @@ interface OrderDetailsDialogProps {
   order: Order
   onClose: () => void
   onStatusChange: (orderId: string, status: string) => void
+  onRefresh: () => void
 }
 
-function OrderDetailsDialog({ order, onClose, onStatusChange }: OrderDetailsDialogProps) {
+function OrderDetailsDialog({ order, onClose, onStatusChange, onRefresh }: OrderDetailsDialogProps) {
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false)
+  const { toast } = useToast()
+
+  const printOrder = () => {
+    const printWindow = window.open("", "", "width=400,height=600")
+    if (!printWindow) return
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Order ${order.orderNo}</title>
+        <style>
+          body { font-family: 'Courier New', monospace; padding: 15px; width: 350px; font-size: 12px; }
+          .center { text-align: center; }
+          .bold { font-weight: bold; }
+          table { width: 100%; border-collapse: collapse; }
+          td { padding: 3px 0; }
+          .right { text-align: right; }
+          .line { border-bottom: 1px dashed #000; margin: 10px 0; }
+        </style>
+      </head>
+      <body onload="window.print(); window.close();">
+        <div class="center">
+          <h2>ORDER</h2>
+          <p>${order.orderNo}</p>
+          <p>${new Date(order.createdAt).toLocaleString()}</p>
+        </div>
+        <div class="line"></div>
+        ${order.customer ? `
+          <p><strong>Customer:</strong> ${order.customer.name}</p>
+          ${order.customer.phone ? `<p><strong>Phone:</strong> ${order.customer.phone}</p>` : ""}
+        ` : ""}
+        ${order.deliveryAddress ? `<p><strong>Address:</strong> ${order.deliveryAddress}</p>` : ""}
+        <div class="line"></div>
+        <table>
+          ${order.items.map(item => `
+            <tr>
+              <td>${item.productName || item.product?.name}</td>
+              <td class="center">x${item.quantity}</td>
+              <td class="right">${formatCurrency(item.totalPrice)}</td>
+            </tr>
+          `).join("")}
+        </table>
+        <div class="line"></div>
+        <table>
+          <tr class="bold">
+            <td>TOTAL</td>
+            <td class="right">${formatCurrency(order.totalAmount)}</td>
+          </tr>
+          <tr>
+            <td>Payment Status</td>
+            <td class="right">${order.paymentStatus}</td>
+          </tr>
+        </table>
+        ${order.notes ? `<p><strong>Notes:</strong> ${order.notes}</p>` : ""}
+      </body>
+      </html>
+    `
+
+    printWindow.document.write(html)
+    printWindow.document.close()
+  }
+
+  const processPayment = async () => {
+    setIsProcessingPayment(true)
+    try {
+      const response = await fetch("/api/admin/orders/payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id }),
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Payment processed and transaction created",
+        })
+        onRefresh()
+        onClose()
+      } else {
+        const data = await response.json()
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: data.error || "Failed to process payment",
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An error occurred",
+      })
+    } finally {
+      setIsProcessingPayment(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <Card className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Order Details - {order.orderNo}</CardTitle>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              ✕
-            </Button>
+            <CardTitle className="flex items-center gap-2">
+              {order.orderType === "CUSTOMER" ? <ShoppingBag className="h-5 w-5" /> : <Truck className="h-5 w-5" />}
+              {order.orderNo}
+              <span className={`px-2 py-1 text-xs rounded-full ${order.orderType === 'CUSTOMER' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                {order.orderType}
+              </span>
+            </CardTitle>
+            <Button variant="ghost" size="sm" onClick={onClose}>✕</Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label className="text-gray-600">Customer</Label>
-              <p className="font-semibold">{order.customer.name}</p>
-              <p className="text-sm text-gray-500">{order.customer.email}</p>
-              {order.customer.phone && <p className="text-sm text-gray-500">{order.customer.phone}</p>}
-            </div>
+            {order.customer && (
+              <div>
+                <Label className="text-gray-600">Customer</Label>
+                <p className="font-semibold">{order.customer.name}</p>
+                {order.customer.phone && <p className="text-sm text-gray-500">{order.customer.phone}</p>}
+                <p className="text-sm text-gray-500">{order.customer.email}</p>
+              </div>
+            )}
             <div>
               <Label className="text-gray-600">Order Date</Label>
               <p className="font-semibold">{new Date(order.createdAt).toLocaleString()}</p>
             </div>
             <div>
               <Label className="text-gray-600">Status</Label>
-              <p className="font-semibold">{order.status}</p>
+              <p className={`font-semibold ${order.status === 'COMPLETED' ? 'text-green-600' : order.status === 'CANCELLED' ? 'text-red-600' : 'text-yellow-600'}`}>
+                {order.status}
+              </p>
+            </div>
+            <div>
+              <Label className="text-gray-600">Payment Status</Label>
+              <p className={`font-semibold ${order.paymentStatus === 'PAID' ? 'text-green-600' : 'text-red-600'}`}>
+                {order.paymentStatus}
+              </p>
             </div>
             <div>
               <Label className="text-gray-600">Total Amount</Label>
@@ -593,8 +1144,7 @@ function OrderDetailsDialog({ order, onClose, onStatusChange }: OrderDetailsDial
               <TableHeader>
                 <TableRow>
                   <TableHead>Product</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead className="text-right">Quantity</TableHead>
+                  <TableHead className="text-right">Qty</TableHead>
                   <TableHead className="text-right">Unit Price</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                 </TableRow>
@@ -602,11 +1152,8 @@ function OrderDetailsDialog({ order, onClose, onStatusChange }: OrderDetailsDial
               <TableBody>
                 {order.items.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell>{item.product.name}</TableCell>
-                    <TableCell>{item.product.sku}</TableCell>
-                    <TableCell className="text-right">
-                      {item.quantity} {item.product.unitOfMeasure}
-                    </TableCell>
+                    <TableCell>{item.productName || item.product?.name}</TableCell>
+                    <TableCell className="text-right">{item.quantity}</TableCell>
                     <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
                     <TableCell className="text-right font-semibold">{formatCurrency(item.totalPrice)}</TableCell>
                   </TableRow>
@@ -622,29 +1169,45 @@ function OrderDetailsDialog({ order, onClose, onStatusChange }: OrderDetailsDial
             </div>
           )}
 
-          {order.status === "PENDING" && (
-            <div className="flex justify-end gap-2 pt-4">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  onStatusChange(order.id, "CANCELLED")
-                  onClose()
-                }}
-              >
-                <XCircle className="h-4 w-4 mr-2" />
-                Cancel Order
-              </Button>
-              <Button
-                onClick={() => {
-                  onStatusChange(order.id, "COMPLETED")
-                  onClose()
-                }}
-              >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Complete Order
-              </Button>
+          <div className="flex justify-between gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={printOrder}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print Order
+            </Button>
+            
+            <div className="flex gap-2">
+              {order.status === "PENDING" && order.orderType === "CUSTOMER" && order.paymentStatus === "UNPAID" && (
+                <Button onClick={processPayment} disabled={isProcessingPayment} className="bg-green-600 hover:bg-green-700">
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  {isProcessingPayment ? "Processing..." : "Confirm Payment"}
+                </Button>
+              )}
+              
+              {order.status === "PENDING" && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      onStatusChange(order.id, "CANCELLED")
+                      onClose()
+                    }}
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      onStatusChange(order.id, "COMPLETED")
+                      onClose()
+                    }}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Complete
+                  </Button>
+                </>
+              )}
             </div>
-          )}
+          </div>
         </CardContent>
       </Card>
     </div>

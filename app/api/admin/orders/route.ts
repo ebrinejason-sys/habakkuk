@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "STAFF")) {
+    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "STAFF" && session.user.role !== "CEO")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -49,6 +49,8 @@ export async function GET(request: NextRequest) {
       totalRevenue: orders
         .filter((o: typeof orders[0]) => o.status === "COMPLETED")
         .reduce((sum: number, o: typeof orders[0]) => sum + o.totalAmount, 0),
+      supplierOrders: orders.filter((o: any) => o.orderType === "SUPPLIER").length,
+      customerOrders: orders.filter((o: any) => o.orderType === "CUSTOMER").length,
     }
 
     return NextResponse.json({ orders, stats })
@@ -67,68 +69,83 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await request.json()
-    const { customerId, items, notes, deliveryAddress } = data
+    const { customerId, customerName, customerPhone, orderType = "CUSTOMER", items, notes, deliveryAddress } = data
 
-    if (!customerId || !items || items.length === 0) {
-      return NextResponse.json({ error: "Customer and items are required" }, { status: 400 })
+    if (!items || items.length === 0) {
+      return NextResponse.json({ error: "Items are required" }, { status: 400 })
     }
 
-    // Validate stock availability
-    for (const item of items) {
-      const product = await prisma.product.findUnique({
-        where: { id: item.productId },
+    // For CUSTOMER orders, we need either an existing customer or new customer info
+    // For SUPPLIER orders, no customer is needed
+    
+    let finalCustomerId = customerId
+
+    // If it's a customer order with no existing customer, create a new customer
+    if (orderType === "CUSTOMER" && !customerId && customerName) {
+      const newCustomer = await prisma.customer.create({
+        data: {
+          name: customerName,
+          email: `${customerName.toLowerCase().replace(/\s+/g, '.')}@temp.local`,
+          phone: customerPhone || null,
+        },
       })
-
-      if (!product) {
-        return NextResponse.json({ error: `Product not found: ${item.productId}` }, { status: 400 })
-      }
-
-      if (product.quantity < item.quantity) {
-        return NextResponse.json(
-          { error: `Insufficient stock for ${product.name}. Available: ${product.quantity}` },
-          { status: 400 }
-        )
-      }
+      finalCustomerId = newCustomer.id
     }
 
-    // Calculate total amount
+    // Calculate total amount and prepare order items
     let totalAmount = 0
     const orderItems = []
 
     for (const item of items) {
-      const product = await prisma.product.findUnique({
-        where: { id: item.productId },
-      })
-
-      const totalPrice = product!.price * item.quantity
+      const unitPrice = item.unitPrice || 0
+      const totalPrice = unitPrice * item.quantity
       totalAmount += totalPrice
 
+      // For CUSTOMER orders with productId, validate stock
+      if (orderType === "CUSTOMER" && item.productId) {
+        const product = await prisma.product.findUnique({
+          where: { id: item.productId },
+        })
+
+        if (product && product.quantity < item.quantity) {
+          return NextResponse.json(
+            { error: `Insufficient stock for ${product.name}. Available: ${product.quantity}` },
+            { status: 400 }
+          )
+        }
+      }
+
       orderItems.push({
-        productId: item.productId,
+        productId: item.productId || null,
+        productName: item.productName || "",
         quantity: item.quantity,
-        unitPrice: product!.price,
+        unitPrice: unitPrice,
         totalPrice,
       })
     }
 
     // Generate order number
+    const prefix = orderType === "SUPPLIER" ? "REQ" : "ORD"
     const lastOrder = await prisma.order.findFirst({
+      where: { orderNo: { startsWith: prefix } },
       orderBy: { createdAt: "desc" },
     })
 
-    let orderNo = "ORD-0001"
+    let orderNo = `${prefix}-0001`
     if (lastOrder && lastOrder.orderNo) {
       const lastNum = parseInt(lastOrder.orderNo.split("-")[1])
-      orderNo = `ORD-${String(lastNum + 1).padStart(4, "0")}`
+      orderNo = `${prefix}-${String(lastNum + 1).padStart(4, "0")}`
     }
 
     // Create order
     const order = await prisma.order.create({
       data: {
         orderNo,
-        customerId,
+        orderType: orderType as "CUSTOMER" | "SUPPLIER",
+        customerId: finalCustomerId || null,
         totalAmount,
         status: "PENDING",
+        paymentStatus: orderType === "SUPPLIER" ? "UNPAID" : "UNPAID",
         notes,
         deliveryAddress,
         items: {
@@ -149,10 +166,12 @@ export async function POST(request: NextRequest) {
     await prisma.auditLog.create({
       data: {
         userId: session.user.id,
-        action: "CREATE_ORDER",
+        action: orderType === "SUPPLIER" ? "CREATE_SUPPLIER_ORDER" : "CREATE_CUSTOMER_ORDER",
         entity: "Order",
         entityId: order.id,
-        details: `Created order ${orderNo} for ${order.customer.name}`,
+        details: orderType === "SUPPLIER" 
+          ? `Created supplier requisition ${orderNo}` 
+          : `Created customer order ${orderNo}${order.customer ? ` for ${order.customer.name}` : ""}`,
       },
     })
 
