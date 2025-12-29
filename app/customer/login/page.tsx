@@ -88,63 +88,84 @@ export default function CustomerLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-white to-green-100">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Habakkuk Pharmacy</CardTitle>
-          <CardDescription>
-            {isLogin ? "Sign in to your account" : "Create a new account"}
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-green-50 via-white to-blue-50">
+      <Card className="w-full max-w-md shadow-2xl border-0">
+        <CardHeader className="text-center space-y-3 pb-6">
+          <div className="flex justify-center mb-2">
+            <div className="w-20 h-20 bg-gradient-to-br from-green-600 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <span className="text-3xl font-bold text-white">HP</span>
+            </div>
+          </div>
+          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
+            Habakkuk Pharmacy
+          </CardTitle>
+          <CardDescription className="text-base">
+            {isLogin ? "Customer Portal - Sign In" : "Customer Portal - Create Account"}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={isLogin ? handleLogin : handleRegister} className="space-y-4">
+        <CardContent className="px-6 pb-6">
+          <form onSubmit={isLogin ? handleLogin : handleRegister} className="space-y-5">
             {!isLogin && (
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="name" className="text-sm font-medium">Full Name</Label>
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
+                  placeholder="John Doe"
+                  className="h-11 transition-all duration-200 focus:ring-2 focus:ring-green-500"
                 />
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-sm font-medium">Email Address</Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                placeholder="your@email.com"
+                className="h-11 transition-all duration-200 focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-sm font-medium">Password</Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                placeholder="••••••••"
+                className="h-11 transition-all duration-200 focus:ring-2 focus:ring-green-500"
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              className="w-full h-11 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-base font-semibold shadow-lg transition-all duration-200" 
+              disabled={isLoading}
+            >
               {isLoading ? "Loading..." : isLogin ? "Sign In" : "Create Account"}
             </Button>
           </form>
-          <div className="mt-4 text-center">
+          <div className="mt-6 pt-6 border-t space-y-3 text-center">
             <button
               onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-primary hover:underline"
+              className="text-sm font-medium text-green-600 hover:text-green-700 hover:underline transition-colors"
             >
-              {isLogin ? "Don't have an account? Register" : "Already have an account? Sign in"}
+              {isLogin ? "Don't have an account? Create one →" : "← Already have an account? Sign in"}
             </button>
-          </div>
-          <div className="mt-4 text-center">
-            <a href="/login" className="text-sm text-gray-500 hover:underline">
-              Staff/Admin? Sign in here
-            </a>
+            <div>
+              <a href="/login" className="text-sm text-gray-500 hover:text-gray-700 hover:underline transition-colors">
+                Staff/Admin Login
+              </a>
+              <span className="mx-2 text-gray-400">|</span>
+              <a href="/" className="text-sm text-gray-500 hover:text-gray-700 hover:underline transition-colors">
+                Back to Home
+              </a>
+            </div>
           </div>
         </CardContent>
       </Card>

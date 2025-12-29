@@ -68,6 +68,87 @@
   }
 }
 
+@layer utilities {
+  /* Smooth animations */
+  .animate-in {
+    animation: fadeIn 0.3s ease-in;
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Hover scale effects */
+  .hover\:scale-102:hover {
+    transform: scale(1.02);
+  }
+  
+  /* Glass morphism effect */
+  .glass {
+    @apply bg-white/70 backdrop-blur-md;
+  }
+  
+  /* Responsive text utilities */
+  .text-responsive-xs {
+    @apply text-xs sm:text-sm;
+  }
+  
+  .text-responsive-sm {
+    @apply text-sm sm:text-base;
+  }
+  
+  .text-responsive-base {
+    @apply text-base sm:text-lg;
+  }
+  
+  .text-responsive-lg {
+    @apply text-lg sm:text-xl lg:text-2xl;
+  }
+  
+  .text-responsive-xl {
+    @apply text-xl sm:text-2xl lg:text-3xl;
+  }
+  
+  .text-responsive-2xl {
+    @apply text-2xl sm:text-3xl lg:text-4xl;
+  }
+  
+  /* Responsive spacing */
+  .p-responsive {
+    @apply p-4 sm:p-6 lg:p-8;
+  }
+  
+  .px-responsive {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+  
+  .py-responsive {
+    @apply py-4 sm:py-6 lg:py-8;
+  }
+  
+  /* Container queries */
+  .container-responsive {
+    @apply w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  /* Card shadows */
+  .card-shadow {
+    @apply shadow-md hover:shadow-lg transition-shadow duration-300;
+  }
+  
+  /* Smooth transitions */
+  .transition-smooth {
+    @apply transition-all duration-300 ease-in-out;
+  }
+}
+
 @media print {
   body * {
     visibility: hidden;

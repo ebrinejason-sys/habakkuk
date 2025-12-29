@@ -61,21 +61,23 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-white to-purple-100">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
-              <span className="text-2xl font-bold text-white">HP</span>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-purple-50 via-white to-blue-50">
+      <Card className="w-full max-w-md shadow-2xl border-0">
+        <CardHeader className="space-y-3 text-center pb-6">
+          <div className="flex justify-center mb-2">
+            <div className="w-20 h-20 bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <span className="text-3xl font-bold text-white">HP</span>
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Habakkuk Pharmacy</CardTitle>
-          <CardDescription>Sign in to your account</CardDescription>
+          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+            Habakkuk Pharmacy
+          </CardTitle>
+          <CardDescription className="text-base">Staff & Admin Portal</CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <CardContent className="px-6 pb-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-sm font-medium">Email Address</Label>
               <Input
                 id="email"
                 type="email"
@@ -84,10 +86,11 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
+                className="h-11 transition-all duration-200 focus:ring-2 focus:ring-purple-500"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-sm font-medium">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -96,12 +99,17 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
+                className="h-11 transition-all duration-200 focus:ring-2 focus:ring-purple-500"
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              className="w-full h-11 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-base font-semibold shadow-lg transition-all duration-200" 
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   Signing in...
                 </>
               ) : (
@@ -109,10 +117,17 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm text-muted-foreground">
-            <a href="/customer/login" className="text-primary hover:underline">
-              Customer? Sign in here
-            </a>
+          <div className="mt-6 pt-6 border-t text-center">
+            <p className="text-sm text-gray-600 mb-2">Looking for something else?</p>
+            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              <a href="/customer/login" className="text-sm text-purple-600 hover:text-purple-700 font-medium hover:underline transition-colors">
+                Customer Portal →
+              </a>
+              <span className="hidden sm:inline text-gray-400">|</span>
+              <a href="/" className="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors">
+                ← Back to Home
+              </a>
+            </div>
           </div>
         </CardContent>
       </Card>

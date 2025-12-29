@@ -59,22 +59,25 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed top-0 left-0 z-50 h-screen w-64 bg-white border-r transition-transform duration-300 ease-in-out lg:translate-x-0",
+        "fixed top-0 left-0 z-50 h-screen w-64 bg-gradient-to-b from-white to-gray-50 border-r shadow-xl transition-transform duration-300 ease-in-out lg:translate-x-0",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center justify-between h-16 px-4 border-b">
-            <Link href="/admin/dashboard" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+          <div className="flex items-center justify-between h-16 px-4 border-b bg-white/80 backdrop-blur-sm">
+            <Link href="/admin/dashboard" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
                 <span className="text-sm font-bold text-white">HP</span>
               </div>
-              <span className="font-bold text-lg">Habakkuk</span>
+              <div className="flex flex-col">
+                <span className="font-bold text-base">Habakkuk</span>
+                <span className="text-[10px] text-gray-500 uppercase tracking-wide">Pharmacy</span>
+              </div>
             </Link>
             <Button
               variant="ghost"
               size="icon"
-              className="lg:hidden"
+              className="lg:hidden hover:bg-gray-100"
               onClick={() => setIsSidebarOpen(false)}
             >
               <X className="h-5 w-5" />
@@ -82,7 +85,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
+          <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
             {filteredNavigation.map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.href
@@ -91,14 +94,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                    "flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200",
                     isActive
-                      ? "bg-primary text-white"
-                      : "text-gray-700 hover:bg-gray-100"
+                      ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-500/30 scale-105"
+                      : "text-gray-700 hover:bg-gray-100 hover:scale-102 hover:shadow-md"
                   )}
                   onClick={() => setIsSidebarOpen(false)}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className={cn("h-5 w-5", isActive && "drop-shadow-sm")} />
                   <span>{item.name}</span>
                 </Link>
               )
@@ -106,24 +109,22 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </nav>
 
           {/* User Info */}
-          <div className="border-t p-4">
-            <div className="flex items-center space-x-3 mb-2">
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                <span className="text-xs font-bold text-white">
+          <div className="border-t bg-white/50 p-4 backdrop-blur-sm">
+            <div className="flex items-center space-x-3 mb-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full flex items-center justify-center shadow-md">
+                <span className="text-sm font-bold text-white">
                   {session?.user.name?.charAt(0).toUpperCase()}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{session?.user.name}</p>
-                <p className="text-xs text-gray-500">{session?.user.role}</p>
+                <p className="text-sm font-semibold truncate text-gray-900">{session?.user.name}</p>
+                <p className="text-xs text-gray-500 font-medium">{session?.user.role}</p>
               </div>
             </div>
             <Button
               variant="outline"
               size="sm"
-              className="w-full"
-              onClick={() => signOut({ callbackUrl: "/login" })}
-            >
+              className="w-full hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-all duration-200">
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
             </Button>
@@ -134,21 +135,33 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex items-center h-16 px-4 bg-white border-b lg:px-6">
+        <header className="sticky top-0 z-30 flex items-center h-16 px-4 bg-white/80 backdrop-blur-md border-b shadow-sm lg:px-6">
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden"
+            className="lg:hidden hover:bg-gray-100"
             onClick={() => setIsSidebarOpen(true)}
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-6 w-6" />
           </Button>
-          <div className="flex-1" />
+          <div className="flex-1 lg:ml-0 ml-2">
+            <h1 className="text-xl font-semibold text-gray-900 hidden sm:block">
+              {filteredNavigation.find(item => item.href === pathname)?.name || "Dashboard"}
+            </h1>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="hidden md:flex flex-col items-end">
+              <span className="text-sm font-medium text-gray-700">{session?.user.name}</span>
+              <span className="text-xs text-gray-500">{session?.user.role}</span>
+            </div>
+          </div>
         </header>
 
         {/* Page content */}
-        <main className="p-4 lg:p-6">
-          {children}
+        <main className="p-4 lg:p-6 xl:p-8 max-w-[1920px] mx-auto">
+          <div className="animate-in fade-in duration-500">
+            {children}
+          </div>
         </main>
       </div>
     </div>
