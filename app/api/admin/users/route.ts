@@ -181,10 +181,73 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { id, name, role, permissions, isActive } = await request.json()
+    const { id, name, role, permissions, isActive, resetPassword } = await request.json()
 
     if (!id) {
       return NextResponse.json({ error: "User ID required" }, { status: 400 })
+    }
+
+    // Handle password reset request
+    if (resetPassword) {
+      const user = await prisma.user.findUnique({
+        where: { id },
+        select: { name: true, email: true }
+      })
+
+      if (!user) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 })
+      }
+
+      // Generate new password
+      const newPassword = generatePassword()
+      const hashedPassword = await bcrypt.hash(newPassword, 10)
+
+      // Update user with new password and require change
+      await prisma.user.update({
+        where: { id },
+        data: {
+          password: hashedPassword,
+          mustChangePassword: true,
+        },
+      })
+
+      // Send password reset email
+      const emailResult = await sendEmail({
+        to: user.email,
+        subject: "Password Reset - Habakkuk Pharmacy",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #059669;">Password Reset</h2>
+            <p>Hello ${user.name},</p>
+            <p>Your password has been reset by an administrator. Here are your new login credentials:</p>
+            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <p><strong>Email:</strong> ${user.email}</p>
+              <p><strong>New Password:</strong> ${newPassword}</p>
+            </div>
+            <p style="color: #dc2626;"><strong>Important:</strong> You will be required to change this password on your next login.</p>
+            <p>Login at: <a href="https://habakkukpharmacy.com/login">https://habakkukpharmacy.com/login</a></p>
+            <br>
+            <p>Best regards,<br>Habakkuk Pharmacy</p>
+          </div>
+        `,
+      })
+
+      // Create audit log
+      await prisma.auditLog.create({
+        data: {
+          userId: session.user.id,
+          action: "RESET_PASSWORD",
+          entity: "USER",
+          entityId: id,
+          details: `Reset password for user: ${user.name} (${user.email})`,
+        },
+      })
+
+      return NextResponse.json({ 
+        success: true, 
+        message: "Password reset successfully. New credentials sent via email.",
+        emailSent: emailResult.success
+      })
     }
 
     // Update user

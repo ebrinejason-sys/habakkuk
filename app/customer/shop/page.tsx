@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { formatCurrency } from "@/lib/utils"
-import { ShoppingCart, Search } from "lucide-react"
+import { ShoppingCart, Search, Home } from "lucide-react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
+import Link from "next/link"
 
 interface Product {
   id: string
@@ -19,10 +21,17 @@ interface Product {
   description?: string
 }
 
+interface Settings {
+  pharmacyName: string
+  location: string
+  contact: string
+}
+
 export default function CustomerShopPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [cart, setCart] = useState<{ [key: string]: number }>({})
   const [searchQuery, setSearchQuery] = useState("")
+  const [settings, setSettings] = useState<Settings | null>(null)
   const { toast } = useToast()
   const router = useRouter()
 
@@ -33,7 +42,20 @@ export default function CustomerShopPage() {
       return
     }
     fetchProducts()
+    fetchSettings()
   }, [])
+
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch("/api/public/settings")
+      if (response.ok) {
+        const data = await response.json()
+        setSettings(data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch settings:", error)
+    }
+  }
 
   const fetchProducts = async () => {
     try {
@@ -73,13 +95,31 @@ export default function CustomerShopPage() {
       <header className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">Habakkuk Pharmacy</h1>
-            <div className="flex items-center space-x-4">
-              <Button variant="outline">
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                Cart ({totalItems})
+            <Link href="/" className="flex items-center space-x-3">
+              <div className="relative w-10 h-10">
+                <Image
+                  src="/logo.png"
+                  alt="Logo"
+                  fill
+                  className="object-contain rounded-lg"
+                />
+              </div>
+              <span className="text-xl font-bold hidden sm:block">
+                {settings?.pharmacyName || "Habakkuk Pharmacy"}
+              </span>
+            </Link>
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <Link href="/">
+                <Button variant="ghost" size="sm">
+                  <Home className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Home</span>
+                </Button>
+              </Link>
+              <Button variant="outline" size="sm">
+                <ShoppingCart className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Cart</span> ({totalItems})
               </Button>
-              <Button variant="ghost" onClick={() => {
+              <Button variant="ghost" size="sm" onClick={() => {
                 localStorage.removeItem("customerId")
                 router.push("/customer/login")
               }}>

@@ -10,7 +10,20 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { formatCurrency } from "@/lib/utils"
-import { DollarSign, TrendingUp, Calendar, Filter, Download } from "lucide-react"
+import { DollarSign, TrendingUp, Calendar, Filter, Download, Eye, Printer, X } from "lucide-react"
+
+interface TransactionItem {
+  id: string
+  quantity: number
+  unitPrice: number
+  totalPrice: number
+  product: {
+    id: string
+    name: string
+    sku: string
+    costPrice: number
+  }
+}
 
 interface Transaction {
   id: string
@@ -22,14 +35,15 @@ interface Transaction {
   user: {
     name: string
   }
-  items: Array<{
-    quantity: number
-    unitPrice: number
-    totalPrice: number
-    product: {
-      costPrice: number
-    }
-  }>
+  items: TransactionItem[]
+}
+
+interface PharmacySettings {
+  pharmacyName: string
+  location: string
+  contact: string
+  email: string
+  footerText?: string
 }
 
 interface Stats {
@@ -50,6 +64,8 @@ export default function TransactionsPage() {
   })
   const [isLoading, setIsLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
+  const [settings, setSettings] = useState<PharmacySettings | null>(null)
   
   // Filter states
   const [cashierFilter, setCashierFilter] = useState("")
@@ -59,6 +75,7 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     fetchTransactions()
+    fetchSettings()
   }, [])
 
   useEffect(() => {
@@ -121,6 +138,93 @@ export default function TransactionsPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch("/api/admin/settings")
+      if (response.ok) {
+        const data = await response.json()
+        setSettings(data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch settings:", error)
+    }
+  }
+
+  const printTransaction = (transaction: Transaction) => {
+    const printWindow = window.open("", "", "width=400,height=600")
+    if (!printWindow) return
+
+    const pharmacyName = settings?.pharmacyName || "Habakkuk Pharmacy"
+    const location = settings?.location || ""
+    const contact = settings?.contact || ""
+    const footerText = settings?.footerText || "Thank you for your purchase!"
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Receipt - ${transaction.transactionNo}</title>
+        <style>
+          body { font-family: 'Courier New', monospace; padding: 15px; width: 350px; font-size: 12px; }
+          .center { text-align: center; }
+          .bold { font-weight: bold; }
+          .header { text-align: center; margin-bottom: 15px; border-bottom: 1px dashed #000; padding-bottom: 15px; }
+          .logo { max-width: 60px; height: auto; margin-bottom: 5px; }
+          .pharmacy-name { font-size: 16px; font-weight: bold; }
+          .pharmacy-info { font-size: 10px; color: #666; }
+          table { width: 100%; border-collapse: collapse; }
+          td { padding: 3px 0; }
+          .right { text-align: right; }
+          .line { border-bottom: 1px dashed #000; margin: 10px 0; }
+          .footer-text { text-align: center; margin-top: 15px; font-size: 10px; color: #666; }
+          @media print { body { padding: 5px; } }
+        </style>
+      </head>
+      <body onload="window.print(); window.close();">
+        <div class="header">
+          <img src="/logo.png" alt="Logo" class="logo" onerror="this.style.display='none'" />
+          <div class="pharmacy-name">${pharmacyName}</div>
+          <div class="pharmacy-info">
+            ${location ? `<div>${location}</div>` : ""}
+            ${contact ? `<div>Tel: ${contact}</div>` : ""}
+          </div>
+        </div>
+        <div class="center">
+          <p class="bold">RECEIPT</p>
+          <p>${transaction.transactionNo}</p>
+          <p>${new Date(transaction.createdAt).toLocaleString()}</p>
+          <p>Cashier: ${transaction.user.name}</p>
+        </div>
+        <div class="line"></div>
+        <table>
+          ${transaction.items.map(item => `
+            <tr>
+              <td>${item.product.name}</td>
+              <td class="center">x${item.quantity}</td>
+              <td class="right">${formatCurrency(item.totalPrice)}</td>
+            </tr>
+          `).join("")}
+        </table>
+        <div class="line"></div>
+        <table>
+          <tr class="bold">
+            <td>TOTAL</td>
+            <td class="right">${formatCurrency(transaction.netAmount)}</td>
+          </tr>
+          <tr>
+            <td>Payment</td>
+            <td class="right">${transaction.paymentMethod}</td>
+          </tr>
+        </table>
+        <div class="footer-text">${footerText}</div>
+      </body>
+      </html>
+    `
+
+    printWindow.document.write(html)
+    printWindow.document.close()
   }
 
   return (
@@ -256,6 +360,7 @@ export default function TransactionsPage() {
                 <TableHead>Payment Method</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead className="text-right">Profit</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -275,12 +380,123 @@ export default function TransactionsPage() {
                   <TableCell className="text-right text-green-600 font-semibold">
                     {formatCurrency(calculateProfit(transaction))}
                   </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedTransaction(transaction)}
+                        title="View Details"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => printTransaction(transaction)}
+                        title="Print Receipt"
+                      >
+                        <Printer className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      {/* Transaction Details Modal */}
+      {selectedTransaction && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Transaction Details</CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => setSelectedTransaction(null)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-gray-600">Transaction #</Label>
+                  <p className="font-semibold">{selectedTransaction.transactionNo}</p>
+                </div>
+                <div>
+                  <Label className="text-gray-600">Date & Time</Label>
+                  <p className="font-semibold">{new Date(selectedTransaction.createdAt).toLocaleString()}</p>
+                </div>
+                <div>
+                  <Label className="text-gray-600">Cashier</Label>
+                  <p className="font-semibold">{selectedTransaction.user.name}</p>
+                </div>
+                <div>
+                  <Label className="text-gray-600">Payment Method</Label>
+                  <p className="font-semibold">
+                    <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">
+                      {selectedTransaction.paymentMethod}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-gray-600 mb-2 block">Items Sold</Label>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead>SKU</TableHead>
+                      <TableHead className="text-right">Qty</TableHead>
+                      <TableHead className="text-right">Unit Price</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead className="text-right">Profit</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedTransaction.items.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>{item.product.name}</TableCell>
+                        <TableCell className="text-gray-500">{item.product.sku}</TableCell>
+                        <TableCell className="text-right">{item.quantity}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
+                        <TableCell className="text-right font-semibold">{formatCurrency(item.totalPrice)}</TableCell>
+                        <TableCell className="text-right text-green-600">
+                          {formatCurrency((item.unitPrice - item.product.costPrice) * item.quantity)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex justify-between items-center text-lg">
+                  <span>Total Amount:</span>
+                  <span className="font-bold">{formatCurrency(selectedTransaction.netAmount)}</span>
+                </div>
+                <div className="flex justify-between items-center text-green-600 mt-2">
+                  <span>Total Profit:</span>
+                  <span className="font-bold">{formatCurrency(calculateProfit(selectedTransaction))}</span>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button variant="outline" onClick={() => printTransaction(selectedTransaction)}>
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print Receipt
+                </Button>
+                <Button onClick={() => setSelectedTransaction(null)}>
+                  Close
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

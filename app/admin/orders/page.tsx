@@ -717,13 +717,39 @@ interface SupplierOrderDialogProps {
   onSuccess: () => void
 }
 
+interface PharmacySettings {
+  pharmacyName: string
+  location: string
+  contact: string
+  email: string
+  logo?: string
+  footerText?: string
+}
+
 function SupplierOrderDialog({ onClose, onSuccess }: SupplierOrderDialogProps) {
   const [orderItems, setOrderItems] = useState<Array<{ productName: string; quantity: number; unitPrice: number }>>([
     { productName: "", quantity: 1, unitPrice: 0 }
   ])
   const [notes, setNotes] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [settings, setSettings] = useState<PharmacySettings | null>(null)
   const { toast } = useToast()
+
+  useEffect(() => {
+    fetchSettings()
+  }, [])
+
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch("/api/admin/settings")
+      if (response.ok) {
+        const data = await response.json()
+        setSettings(data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch settings:", error)
+    }
+  }
 
   const addItem = () => {
     setOrderItems([...orderItems, { productName: "", quantity: 1, unitPrice: 0 }])
@@ -804,6 +830,10 @@ function SupplierOrderDialog({ onClose, onSuccess }: SupplierOrderDialogProps) {
     if (!printWindow) return
 
     const validItems = orderItems.filter(item => item.productName.trim())
+    const pharmacyName = settings?.pharmacyName || "Habakkuk Pharmacy"
+    const location = settings?.location || ""
+    const contact = settings?.contact || ""
+    const email = settings?.email || ""
 
     const html = `
       <!DOCTYPE html>
@@ -812,15 +842,35 @@ function SupplierOrderDialog({ onClose, onSuccess }: SupplierOrderDialogProps) {
         <title>Supplier Requisition</title>
         <style>
           body { font-family: Arial, sans-serif; padding: 20px; }
-          h1 { text-align: center; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+          .logo { max-width: 80px; height: auto; margin-bottom: 10px; }
+          .pharmacy-name { font-size: 24px; font-weight: bold; margin: 5px 0; }
+          .pharmacy-info { font-size: 12px; color: #666; }
+          h1 { text-align: center; margin: 20px 0; font-size: 20px; }
           table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
           th { background-color: #f4f4f4; }
-          .total { font-weight: bold; font-size: 1.2em; }
-          .footer { margin-top: 30px; }
+          .total { font-weight: bold; font-size: 1.2em; margin-top: 20px; }
+          .footer { margin-top: 40px; }
+          .signature-line { border-bottom: 1px solid #000; width: 200px; display: inline-block; margin-left: 10px; }
+          .footer p { margin: 15px 0; }
+          @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+          }
         </style>
       </head>
       <body onload="window.print(); window.close();">
+        <div class="header">
+          <img src="/logo.png" alt="Logo" class="logo" onerror="this.style.display='none'" />
+          <div class="pharmacy-name">${pharmacyName}</div>
+          <div class="pharmacy-info">
+            ${location ? `<div>${location}</div>` : ""}
+            ${contact ? `<div>Tel: ${contact}</div>` : ""}
+            ${email ? `<div>Email: ${email}</div>` : ""}
+          </div>
+        </div>
+        
         <h1>SUPPLIER REQUISITION</h1>
         <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
         <p><strong>Requisition No:</strong> REQ-${Date.now()}</p>
@@ -979,11 +1029,33 @@ interface OrderDetailsDialogProps {
 
 function OrderDetailsDialog({ order, onClose, onStatusChange, onRefresh }: OrderDetailsDialogProps) {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
+  const [settings, setSettings] = useState<PharmacySettings | null>(null)
   const { toast } = useToast()
+
+  useEffect(() => {
+    fetchSettings()
+  }, [])
+
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch("/api/admin/settings")
+      if (response.ok) {
+        const data = await response.json()
+        setSettings(data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch settings:", error)
+    }
+  }
 
   const printOrder = () => {
     const printWindow = window.open("", "", "width=400,height=600")
     if (!printWindow) return
+
+    const pharmacyName = settings?.pharmacyName || "Habakkuk Pharmacy"
+    const location = settings?.location || ""
+    const contact = settings?.contact || ""
+    const footerText = settings?.footerText || "Thank you for your business!"
 
     const html = `
       <!DOCTYPE html>
@@ -994,15 +1066,31 @@ function OrderDetailsDialog({ order, onClose, onStatusChange, onRefresh }: Order
           body { font-family: 'Courier New', monospace; padding: 15px; width: 350px; font-size: 12px; }
           .center { text-align: center; }
           .bold { font-weight: bold; }
+          .header { text-align: center; margin-bottom: 15px; border-bottom: 1px dashed #000; padding-bottom: 15px; }
+          .logo { max-width: 60px; height: auto; margin-bottom: 5px; }
+          .pharmacy-name { font-size: 16px; font-weight: bold; }
+          .pharmacy-info { font-size: 10px; color: #666; }
           table { width: 100%; border-collapse: collapse; }
           td { padding: 3px 0; }
           .right { text-align: right; }
           .line { border-bottom: 1px dashed #000; margin: 10px 0; }
+          .footer-text { text-align: center; margin-top: 15px; font-size: 10px; color: #666; }
+          @media print {
+            body { padding: 5px; }
+          }
         </style>
       </head>
       <body onload="window.print(); window.close();">
+        <div class="header">
+          <img src="/logo.png" alt="Logo" class="logo" onerror="this.style.display='none'" />
+          <div class="pharmacy-name">${pharmacyName}</div>
+          <div class="pharmacy-info">
+            ${location ? `<div>${location}</div>` : ""}
+            ${contact ? `<div>Tel: ${contact}</div>` : ""}
+          </div>
+        </div>
         <div class="center">
-          <h2>ORDER</h2>
+          <h2 style="margin: 5px 0;">ORDER</h2>
           <p>${order.orderNo}</p>
           <p>${new Date(order.createdAt).toLocaleString()}</p>
         </div>
@@ -1034,6 +1122,7 @@ function OrderDetailsDialog({ order, onClose, onStatusChange, onRefresh }: Order
           </tr>
         </table>
         ${order.notes ? `<p><strong>Notes:</strong> ${order.notes}</p>` : ""}
+        <div class="footer-text">${footerText}</div>
       </body>
       </html>
     `

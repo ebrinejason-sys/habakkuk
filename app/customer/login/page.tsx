@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -8,6 +8,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
+import Image from "next/image"
+import Link from "next/link"
+
+interface Settings {
+  pharmacyName: string
+}
 
 export default function CustomerLoginPage() {
   const [isLogin, setIsLogin] = useState(true)
@@ -15,8 +21,25 @@ export default function CustomerLoginPage() {
   const [password, setPassword] = useState("")
   const [name, setName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [settings, setSettings] = useState<Settings | null>(null)
   const router = useRouter()
   const { toast } = useToast()
+
+  useEffect(() => {
+    fetchSettings()
+  }, [])
+
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch("/api/public/settings")
+      if (response.ok) {
+        const data = await response.json()
+        setSettings(data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch settings:", error)
+    }
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -88,16 +111,21 @@ export default function CustomerLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-green-50 via-white to-blue-50">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-emerald-50 via-white to-teal-50">
       <Card className="w-full max-w-md shadow-2xl border-0">
         <CardHeader className="text-center space-y-3 pb-6">
-          <div className="flex justify-center mb-2">
-            <div className="w-20 h-20 bg-gradient-to-br from-green-600 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <span className="text-3xl font-bold text-white">HP</span>
+          <Link href="/" className="flex justify-center mb-2">
+            <div className="relative w-20 h-20 bg-white rounded-2xl shadow-lg overflow-hidden">
+              <Image
+                src="/logo.png"
+                alt="Logo"
+                fill
+                className="object-contain p-2"
+              />
             </div>
-          </div>
-          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
-            Habakkuk Pharmacy
+          </Link>
+          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+            {settings?.pharmacyName || "Habakkuk Pharmacy"}
           </CardTitle>
           <CardDescription className="text-base">
             {isLogin ? "Customer Portal - Sign In" : "Customer Portal - Create Account"}
@@ -114,7 +142,7 @@ export default function CustomerLoginPage() {
                   onChange={(e) => setName(e.target.value)}
                   required
                   placeholder="John Doe"
-                  className="h-11 transition-all duration-200 focus:ring-2 focus:ring-green-500"
+                  className="h-11 transition-all duration-200 focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
             )}
@@ -127,7 +155,7 @@ export default function CustomerLoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="your@email.com"
-                className="h-11 transition-all duration-200 focus:ring-2 focus:ring-green-500"
+                className="h-11 transition-all duration-200 focus:ring-2 focus:ring-emerald-500"
               />
             </div>
             <div className="space-y-2">
@@ -139,12 +167,12 @@ export default function CustomerLoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 placeholder="••••••••"
-                className="h-11 transition-all duration-200 focus:ring-2 focus:ring-green-500"
+                className="h-11 transition-all duration-200 focus:ring-2 focus:ring-emerald-500"
               />
             </div>
             <Button 
               type="submit" 
-              className="w-full h-11 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-base font-semibold shadow-lg transition-all duration-200" 
+              className="w-full h-11 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-base font-semibold shadow-lg transition-all duration-200" 
               disabled={isLoading}
             >
               {isLoading ? "Loading..." : isLogin ? "Sign In" : "Create Account"}
@@ -153,18 +181,18 @@ export default function CustomerLoginPage() {
           <div className="mt-6 pt-6 border-t space-y-3 text-center">
             <button
               onClick={() => setIsLogin(!isLogin)}
-              className="text-sm font-medium text-green-600 hover:text-green-700 hover:underline transition-colors"
+              className="text-sm font-medium text-emerald-600 hover:text-emerald-700 hover:underline transition-colors"
             >
               {isLogin ? "Don't have an account? Create one →" : "← Already have an account? Sign in"}
             </button>
             <div>
-              <a href="/login" className="text-sm text-gray-500 hover:text-gray-700 hover:underline transition-colors">
+              <Link href="/login" className="text-sm text-gray-500 hover:text-gray-700 hover:underline transition-colors">
                 Staff/Admin Login
-              </a>
+              </Link>
               <span className="mx-2 text-gray-400">|</span>
-              <a href="/" className="text-sm text-gray-500 hover:text-gray-700 hover:underline transition-colors">
+              <Link href="/" className="text-sm text-gray-500 hover:text-gray-700 hover:underline transition-colors">
                 Back to Home
-              </a>
+              </Link>
             </div>
           </div>
         </CardContent>

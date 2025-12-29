@@ -27,6 +27,8 @@ interface Product {
   unitOfMeasure: string
   description?: string
   expiryDate?: string
+  batchNumber?: string
+  manufacturer?: string
 }
 
 export default function InventoryPage() {
@@ -275,6 +277,9 @@ function CreateProductDialog({ onClose, onSuccess }: CreateProductDialogProps) {
     unitOfMeasure: "Unit",
     barcode: "",
     description: "",
+    batchNumber: "",
+    manufacturer: "",
+    expiryDate: "",
   })
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
@@ -295,6 +300,9 @@ function CreateProductDialog({ onClose, onSuccess }: CreateProductDialogProps) {
           reorderLevel: parseInt(formData.reorderLevel),
           unitOfMeasure: formData.unitOfMeasure,
           barcode: formData.barcode || null,
+          batchNumber: formData.batchNumber || null,
+          manufacturer: formData.manufacturer || null,
+          expiryDate: formData.expiryDate || null,
         }),
       })
 
@@ -420,7 +428,33 @@ function CreateProductDialog({ onClose, onSuccess }: CreateProductDialogProps) {
                   <option value="kg">kg</option>
                   <option value="L">L</option>
                 </select>
-              </div>              <div className="space-y-2 col-span-2">
+              </div>              <div className="space-y-2">
+                <Label htmlFor="batchNumber">Batch Number</Label>
+                <Input
+                  id="batchNumber"
+                  value={formData.batchNumber}
+                  onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value })}
+                  placeholder="e.g., BATCH-2025-001"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="manufacturer">Manufacturer</Label>
+                <Input
+                  id="manufacturer"
+                  value={formData.manufacturer}
+                  onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="expiryDate">Expiry Date</Label>
+                <Input
+                  id="expiryDate"
+                  type="date"
+                  value={formData.expiryDate}
+                  onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2 col-span-2">
                 <Label htmlFor="description">Description</Label>
                 <Input
                   id="description"
@@ -502,7 +536,7 @@ function BulkUploadDialog({ onClose, onSuccess }: CreateProductDialogProps) {
   }
 
   const downloadTemplate = () => {
-    const csvContent = "name,sku,barcode,category,price,costPrice,quantity,reorderLevel,unitOfMeasure,description\nParacetamol 500mg,PAR500,123456789,Pain Relief,5000,3000,100,20,Strip,Pain and fever relief\nIbuprofen 400mg,IBU400,987654321,Pain Relief,8000,5000,150,25,Box,Anti-inflammatory"
+    const csvContent = "name,sku,barcode,category,price,costPrice,quantity,reorderLevel,unitOfMeasure,description,batchNumber,manufacturer,expiryDate\nParacetamol 500mg,PAR500,123456789,Pain Relief,5000,3000,100,20,Strip,Pain and fever relief,BATCH-2025-001,Cipla,2027-12-31\nIbuprofen 400mg,IBU400,987654321,Pain Relief,8000,5000,150,25,Box,Anti-inflammatory,BATCH-2025-002,GSK,2026-06-30"
     const blob = new Blob([csvContent], { type: "text/csv" })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement("a")
@@ -523,7 +557,7 @@ function BulkUploadDialog({ onClose, onSuccess }: CreateProductDialogProps) {
             <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
               <li>Upload a CSV file with product details</li>
               <li>Required columns: name, sku, category, price, costPrice, quantity</li>
-              <li>Optional columns: reorderLevel, unitOfMeasure, description</li>
+              <li>Optional columns: reorderLevel, unitOfMeasure, description, batchNumber, manufacturer, expiryDate</li>
               <li>Download the template for correct format</li>
             </ul>
           </div>
@@ -581,6 +615,9 @@ function EditProductDialog({ product, onClose, onSuccess }: EditProductDialogPro
     reorderLevel: product.reorderLevel?.toString() || "10",
     unitOfMeasure: product.unitOfMeasure || "Unit",
     description: product.description || "",
+    batchNumber: product.batchNumber || "",
+    manufacturer: product.manufacturer || "",
+    expiryDate: product.expiryDate ? product.expiryDate.split("T")[0] : "",
   })
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
@@ -601,6 +638,9 @@ function EditProductDialog({ product, onClose, onSuccess }: EditProductDialogPro
           quantity: parseInt(formData.quantity),
           reorderLevel: parseInt(formData.reorderLevel),
           barcode: formData.barcode || null,
+          batchNumber: formData.batchNumber || null,
+          manufacturer: formData.manufacturer || null,
+          expiryDate: formData.expiryDate || null,
         }),
       })
 
@@ -738,6 +778,32 @@ function EditProductDialog({ product, onClose, onSuccess }: EditProductDialogPro
                   <option value="kg">kg</option>
                   <option value="L">L</option>
                 </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-batchNumber">Batch Number</Label>
+                <Input
+                  id="edit-batchNumber"
+                  value={formData.batchNumber}
+                  onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value })}
+                  placeholder="e.g., BATCH-2025-001"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-manufacturer">Manufacturer</Label>
+                <Input
+                  id="edit-manufacturer"
+                  value={formData.manufacturer}
+                  onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-expiryDate">Expiry Date</Label>
+                <Input
+                  id="edit-expiryDate"
+                  type="date"
+                  value={formData.expiryDate}
+                  onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
+                />
               </div>
               <div className="space-y-2 col-span-2">
                 <Label htmlFor="edit-description">Description</Label>

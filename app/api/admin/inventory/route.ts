@@ -60,6 +60,9 @@ export async function POST(request: NextRequest) {
         reorderLevel: data.reorderLevel || 10,
         unitOfMeasure: data.unitOfMeasure || "Unit",
         description: data.description,
+        batchNumber: data.batchNumber,
+        manufacturer: data.manufacturer,
+        expiryDate: data.expiryDate ? new Date(data.expiryDate) : null,
       },
     })
 
@@ -118,6 +121,9 @@ export async function PATCH(request: NextRequest) {
         reorderLevel: data.reorderLevel || 10,
         unitOfMeasure: data.unitOfMeasure || "Unit",
         description: data.description,
+        batchNumber: data.batchNumber,
+        manufacturer: data.manufacturer,
+        expiryDate: data.expiryDate ? new Date(data.expiryDate) : null,
       },
     })
 

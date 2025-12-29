@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,12 +12,33 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast"
 import { Loader2 } from "lucide-react"
 
+interface Settings {
+  pharmacyName: string
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [settings, setSettings] = useState<Settings | null>(null)
   const router = useRouter()
   const { toast } = useToast()
+
+  useEffect(() => {
+    fetchSettings()
+  }, [])
+
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch("/api/public/settings")
+      if (response.ok) {
+        const data = await response.json()
+        setSettings(data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch settings:", error)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -93,22 +115,21 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-purple-50 via-white to-blue-50">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-emerald-50 via-white to-teal-50">
       <Card className="w-full max-w-md shadow-2xl border-0">
         <CardHeader className="space-y-3 text-center pb-6">
-          <div className="flex justify-center mb-2">
-            <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-lg">
+          <Link href="/" className="flex justify-center mb-2">
+            <div className="relative w-20 h-20 rounded-2xl overflow-hidden shadow-lg bg-white">
               <Image
                 src="/logo.png"
-                alt="Habakkuk Pharmacy Logo"
-                width={80}
-                height={80}
-                className="object-cover"
+                alt="Pharmacy Logo"
+                fill
+                className="object-contain p-2"
               />
             </div>
-          </div>
-          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-            Habakkuk Pharmacy
+          </Link>
+          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+            {settings?.pharmacyName || "Habakkuk Pharmacy"}
           </CardTitle>
           <CardDescription className="text-base">Staff & Admin Portal</CardDescription>
         </CardHeader>
@@ -124,7 +145,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
-                className="h-11 transition-all duration-200 focus:ring-2 focus:ring-purple-500"
+                className="h-11 transition-all duration-200 focus:ring-2 focus:ring-emerald-500"
               />
             </div>
             <div className="space-y-2">
@@ -137,12 +158,12 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
-                className="h-11 transition-all duration-200 focus:ring-2 focus:ring-purple-500"
+                className="h-11 transition-all duration-200 focus:ring-2 focus:ring-emerald-500"
               />
             </div>
             <Button 
               type="submit" 
-              className="w-full h-11 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-base font-semibold shadow-lg transition-all duration-200" 
+              className="w-full h-11 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-base font-semibold shadow-lg transition-all duration-200" 
               disabled={isLoading}
             >
               {isLoading ? (
@@ -158,13 +179,13 @@ export default function LoginPage() {
           <div className="mt-6 pt-6 border-t text-center">
             <p className="text-sm text-gray-600 mb-2">Looking for something else?</p>
             <div className="flex flex-col sm:flex-row gap-2 justify-center">
-              <a href="/customer/login" className="text-sm text-purple-600 hover:text-purple-700 font-medium hover:underline transition-colors">
+              <Link href="/customer/login" className="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline transition-colors">
                 Customer Portal →
-              </a>
+              </Link>
               <span className="hidden sm:inline text-gray-400">|</span>
-              <a href="/" className="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors">
+              <Link href="/" className="text-sm text-teal-600 hover:text-teal-700 font-medium hover:underline transition-colors">
                 ← Back to Home
-              </a>
+              </Link>
             </div>
           </div>
         </CardContent>

@@ -22,6 +22,7 @@ interface Settings {
   currency: string
   taxRate: number
   logo?: string
+  printerType: string
 }
 
 export default function SettingsPage() {
@@ -34,6 +35,7 @@ export default function SettingsPage() {
     currency: "UGX",
     taxRate: 0,
     logo: "",
+    printerType: "default",
   })
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -256,6 +258,41 @@ export default function SettingsPage() {
                 />
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Printer Configuration</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="printerType">Printer Type</Label>
+              <select
+                id="printerType"
+                value={settings.printerType}
+                onChange={(e) => setSettings({ ...settings, printerType: e.target.value })}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="default">Default System Printer</option>
+                <option value="brother-dcp-t300">Brother DCP-T300</option>
+                <option value="brother-dcp-t500w">Brother DCP-T500W</option>
+                <option value="epson-tm-t20">Epson TM-T20 (Thermal)</option>
+                <option value="epson-tm-t88">Epson TM-T88 (Thermal)</option>
+                <option value="star-tsp100">Star TSP100 (Thermal)</option>
+                <option value="generic-58mm">Generic 58mm Thermal</option>
+                <option value="generic-80mm">Generic 80mm Thermal</option>
+              </select>
+              <p className="text-xs text-gray-500">Select your printer model for optimized receipt printing</p>
+            </div>
+            {settings.printerType === "brother-dcp-t300" && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800">
+                  <strong>Brother DCP-T300:</strong> Multi-function inkjet printer. Receipts will be formatted for A4/Letter paper.
+                  Make sure the printer is connected via USB and drivers are installed.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

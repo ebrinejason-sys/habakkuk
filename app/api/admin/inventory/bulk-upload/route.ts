@@ -53,6 +53,9 @@ export async function POST(request: NextRequest) {
       const reorderLevel = data.reorderlevel || data.reorderLevel || data.ReorderLevel
       const unitOfMeasure = data.unitofmeasure || data.unitOfMeasure || data.UnitOfMeasure || "Unit"
       const description = data.description || data.Description || null
+      const batchNumber = data.batchnumber || data.batchNumber || data.BatchNumber || null
+      const manufacturer = data.manufacturer || data.Manufacturer || null
+      const expiryDate = data.expirydate || data.expiryDate || data.ExpiryDate || null
 
       if (!name || !sku || !category || !price || !costPrice || !quantity) {
         errors.push(`Row ${index + 2}: Missing required fields (name: ${!!name}, sku: ${!!sku}, category: ${!!category}, price: ${!!price}, costPrice: ${!!costPrice}, quantity: ${!!quantity})`)
@@ -80,6 +83,9 @@ export async function POST(request: NextRequest) {
         reorderLevel: reorderLevel ? parseInt(reorderLevel) : 10,
         unitOfMeasure: unitOfMeasure,
         description: description,
+        batchNumber: batchNumber,
+        manufacturer: manufacturer,
+        expiryDate: expiryDate ? new Date(expiryDate) : null,
       })
     }
 
