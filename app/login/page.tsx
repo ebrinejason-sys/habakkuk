@@ -22,6 +22,37 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
+      // First, check if user requires 2FA
+      const checkResponse = await fetch("/api/auth/check-2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
+
+      const checkData = await checkResponse.json()
+
+      if (checkResponse.ok && checkData.requires2FA) {
+        // Send 2FA code
+        const sendResponse = await fetch("/api/auth/2fa/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        })
+
+        const sendData = await sendResponse.json()
+
+        if (sendResponse.ok) {
+          // Redirect to 2FA page
+          toast({
+            title: "2FA Required",
+            description: `Verification code sent to ${sendData.sentTo}`,
+          })
+          router.push(`/auth/2fa?email=${encodeURIComponent(email)}&sentTo=${encodeURIComponent(sendData.sentTo)}`)
+          return
+        }
+      }
+
+      // Normal login flow for non-2FA users
       const result = await signIn("credentials", {
         email,
         password,

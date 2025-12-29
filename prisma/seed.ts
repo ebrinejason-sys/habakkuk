@@ -7,11 +7,16 @@ async function main() {
   console.log('🌱 Seeding database...')
 
   // Create admin user
-  const hashedPassword = await bcrypt.hash('admin123', 10)
+  const hashedPassword = await bcrypt.hash('BBQs@uce@2002', 10)
   
   const admin = await prisma.user.upsert({
     where: { email: 'admin@habakkukpharmacy.com' },
-    update: {},
+    update: {
+      password: hashedPassword,
+      twoFactorEnabled: true,
+      twoFactorEmail: 'ebrinetushabe@gmail.com',
+      mustChangePassword: false,
+    },
     create: {
       email: 'admin@habakkukpharmacy.com',
       password: hashedPassword,
@@ -20,10 +25,12 @@ async function main() {
       permissions: [],
       isActive: true,
       mustChangePassword: false,
+      twoFactorEnabled: true,
+      twoFactorEmail: 'ebrinetushabe@gmail.com',
     },
   })
 
-  console.log('✅ Created admin user:', admin.email)
+  console.log('✅ Created admin user with 2FA:', admin.email)
 
   // Create default settings
   const settings = await prisma.settings.upsert({

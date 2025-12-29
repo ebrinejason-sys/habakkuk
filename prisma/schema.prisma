@@ -19,6 +19,10 @@ model User {
   permissions       Permission[]
   isActive          Boolean   @default(true)
   mustChangePassword Boolean  @default(true)
+  twoFactorEnabled  Boolean   @default(false)
+  twoFactorEmail    String?
+  twoFactorCode     String?
+  twoFactorExpiry   DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   createdBy         String?
