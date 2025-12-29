@@ -15,6 +15,9 @@ export async function GET(request: NextRequest) {
     }
 
     const users = await prisma.user.findMany({
+      where: {
+        role: { not: "ADMIN" }, // Exclude admin users from list
+      },
       select: {
         id: true,
         name: true,
@@ -144,6 +147,19 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json(
         { error: "Cannot delete your own account" },
         { status: 400 }
+      )
+    }
+
+    // Check if target user is admin - prevent deletion
+    const targetUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    })
+
+    if (targetUser?.role === "ADMIN") {
+      return NextResponse.json(
+        { error: "Admin accounts cannot be deleted" },
+        { status: 403 }
       )
     }
 

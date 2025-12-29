@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
-import { Plus, Upload, Search, Edit, AlertTriangle, Package, PackagePlus } from "lucide-react"
+import { Plus, Upload, Search, Edit, AlertTriangle, Package, PackagePlus, X, ChevronDown, ChevronUp } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 
 interface Product {
@@ -50,16 +50,18 @@ export default function InventoryPage() {
   const [showUpdateStock, setShowUpdateStock] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [showLowStockAlert, setShowLowStockAlert] = useState(true)
+  const [lowStockExpanded, setLowStockExpanded] = useState(false)
+  const [displayCount, setDisplayCount] = useState(20)
   const { toast } = useToast()
 
   // Debounce search for better INP performance
   const debouncedSearchQuery = useDebounce(searchQuery, 300)
 
   // Memoized filtered products using debounced search
-  // Show only 20 products initially, search to find more
-  const filteredProducts = useMemo(() => {
+  const allFilteredProducts = useMemo(() => {
     const query = debouncedSearchQuery.toLowerCase()
-    if (!query) return products.slice(0, 20) // Show first 20 when no search
+    if (!query) return products
     return products.filter(
       (product) =>
         product.name.toLowerCase().includes(query) ||
@@ -67,6 +69,14 @@ export default function InventoryPage() {
         product.category.toLowerCase().includes(query)
     )
   }, [debouncedSearchQuery, products])
+
+  // Paginate: show displayCount items, or all when searching
+  const filteredProducts = useMemo(() => {
+    if (debouncedSearchQuery) return allFilteredProducts
+    return allFilteredProducts.slice(0, displayCount)
+  }, [allFilteredProducts, displayCount, debouncedSearchQuery])
+
+  const hasMoreProducts = !debouncedSearchQuery && displayCount < products.length
 
   useEffect(() => {
     fetchProducts()
@@ -124,27 +134,61 @@ export default function InventoryPage() {
         </div>
       </div>
 
-      {lowStockProducts.length > 0 && (
+      {lowStockProducts.length > 0 && showLowStockAlert && (
         <Card className="mb-6 border-orange-200 bg-orange-50">
-          <CardHeader>
-            <CardTitle className="flex items-center text-orange-800">
-              <AlertTriangle className="h-5 w-5 mr-2" />
-              Low Stock Alert - Replenishment Needed
-            </CardTitle>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle 
+                className="flex items-center text-orange-800 cursor-pointer hover:text-orange-900"
+                onClick={() => setLowStockExpanded(!lowStockExpanded)}
+              >
+                <AlertTriangle className="h-5 w-5 mr-2" />
+                Low Stock Alert - {lowStockProducts.length} product(s)
+                {lowStockExpanded ? (
+                  <ChevronUp className="h-4 w-4 ml-2" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 ml-2" />
+                )}
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowLowStockAlert(false)}
+                className="text-orange-700 hover:text-orange-900 hover:bg-orange-100"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-orange-700 mb-2">
-              {lowStockProducts.length} product(s) need stock replenishment:
-            </p>
-            <ul className="text-sm text-orange-700 space-y-1">
-              {lowStockProducts.slice(0, 5).map((p) => (
-                <li key={p.id}>• {p.name} - Current: {p.quantity} units</li>
-              ))}
-              {lowStockProducts.length > 5 && (
-                <li className="font-semibold">...and {lowStockProducts.length - 5} more</li>
-              )}
-            </ul>
-          </CardContent>
+          {lowStockExpanded && (
+            <CardContent className="pt-2">
+              <p className="text-sm text-orange-700 mb-3">
+                The following products need stock replenishment:
+              </p>
+              <div className="max-h-64 overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-orange-800">Product</TableHead>
+                      <TableHead className="text-orange-800">SKU</TableHead>
+                      <TableHead className="text-orange-800">Current Stock</TableHead>
+                      <TableHead className="text-orange-800">Reorder Level</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {lowStockProducts.map((p) => (
+                      <TableRow key={p.id} className="border-orange-200">
+                        <TableCell className="text-orange-700 font-medium">{p.name}</TableCell>
+                        <TableCell className="text-orange-600">{p.sku}</TableCell>
+                        <TableCell className="text-orange-700 font-semibold">{p.quantity}</TableCell>
+                        <TableCell className="text-orange-600">{p.reorderLevel}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          )}
         </Card>
       )}
 
@@ -197,13 +241,22 @@ export default function InventoryPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Products</CardTitle>
+            <div>
+              <CardTitle>Products</CardTitle>
+              <p className="text-sm text-gray-500 mt-1">
+                Showing {filteredProducts.length} of {debouncedSearchQuery ? allFilteredProducts.length : products.length} products
+                {!debouncedSearchQuery && hasMoreProducts && " • Search or load more to see all"}
+              </p>
+            </div>
             <div className="relative w-64">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Search products..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setDisplayCount(20) // Reset display count when searching
+                }}
                 className="pl-10"
               />
             </div>
@@ -266,6 +319,16 @@ export default function InventoryPage() {
               ))}
             </TableBody>
           </Table>
+          {hasMoreProducts && (
+            <div className="flex justify-center mt-4 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => setDisplayCount((prev) => prev + 20)}
+              >
+                Load More ({products.length - displayCount} remaining)
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

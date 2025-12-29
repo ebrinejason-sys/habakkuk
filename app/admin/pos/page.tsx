@@ -69,6 +69,7 @@ export default function POSPage() {
   const [showOrderDialog, setShowOrderDialog] = useState(false)
   const [showReceiptPreview, setShowReceiptPreview] = useState(false)
   const [amountPaid, setAmountPaid] = useState("")
+  const [displayCount, setDisplayCount] = useState(20)
   const { toast } = useToast()
 
   // Debounce search query for better performance
@@ -111,10 +112,9 @@ export default function POSPage() {
   }
 
   // Use memoized filtered products with debounced search for better INP
-  // Show only 20 products initially, search to find more
-  const filteredProducts = useMemo(() => {
+  const allFilteredProducts = useMemo(() => {
     const query = debouncedSearchQuery.toLowerCase()
-    if (!query) return products.slice(0, 20) // Show first 20 when no search
+    if (!query) return products
     return products.filter(
       (p) =>
         p.name.toLowerCase().includes(query) ||
@@ -122,6 +122,14 @@ export default function POSPage() {
         (p.barcode && p.barcode.toLowerCase().includes(query))
     )
   }, [products, debouncedSearchQuery])
+
+  // Paginate: show displayCount items, or all when searching
+  const filteredProducts = useMemo(() => {
+    if (debouncedSearchQuery) return allFilteredProducts
+    return allFilteredProducts.slice(0, displayCount)
+  }, [allFilteredProducts, displayCount, debouncedSearchQuery])
+
+  const hasMoreProducts = !debouncedSearchQuery && displayCount < products.length
 
   const addToCart = (product: Product) => {
     const existingItem = cart.find((item) => item.id === product.id)
@@ -636,13 +644,23 @@ export default function POSPage() {
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Products</CardTitle>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Products</CardTitle>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Showing {filteredProducts.length} of {debouncedSearchQuery ? allFilteredProducts.length : products.length} products
+                  </p>
+                </div>
+              </div>
               <div className="relative mt-4">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search by name, SKU, or scan barcode..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value)
+                    setDisplayCount(20) // Reset display count when searching
+                  }}
                   className="pl-10"
                 />
               </div>
@@ -664,6 +682,16 @@ export default function POSPage() {
                   </button>
                 ))}
               </div>
+              {hasMoreProducts && (
+                <div className="flex justify-center mt-4 pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    onClick={() => setDisplayCount((prev) => prev + 20)}
+                  >
+                    Load More ({products.length - displayCount} remaining)
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
