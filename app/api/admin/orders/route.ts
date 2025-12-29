@@ -225,55 +225,62 @@ export async function PATCH(request: NextRequest) {
       },
     })
 
-    // If completing order, create transaction and update stock
-    if (status === "COMPLETED") {
-      // Create transaction
-      const transaction = await prisma.transaction.create({
-        data: {
-          transactionNo: `TXN-${Date.now()}`,
-          customerId: order.customerId,
-          totalAmount: order.totalAmount,
-          netAmount: order.totalAmount,
-          paymentMethod: "CASH",
-          userId: session.user.id,
-          items: {
-            create: order.items.map((item: { productId: string; quantity: number; unitPrice: number; totalPrice: number }) => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              totalPrice: item.totalPrice,
-            })),
-          },
-        },
-      })
-
-      // Update stock
-      for (const item of order.items) {
-        const product = await prisma.product.findUnique({
-          where: { id: item.productId },
-        })
-        
-        await prisma.product.update({
-          where: { id: item.productId },
+    // If completing order, create transaction and update stock (only for customer orders with products)
+    if (status === "COMPLETED" && order.orderType === "CUSTOMER") {
+      // Get only items with productId
+      const itemsWithProducts = order.items.filter(item => item.productId)
+      
+      if (itemsWithProducts.length > 0) {
+        // Create transaction
+        const transaction = await prisma.transaction.create({
           data: {
-            quantity: {
-              decrement: item.quantity,
+            transactionNo: `TXN-${Date.now()}`,
+            customerId: order.customerId,
+            totalAmount: order.totalAmount,
+            netAmount: order.totalAmount,
+            paymentMethod: "CASH",
+            userId: session.user.id,
+            items: {
+              create: itemsWithProducts.map((item) => ({
+                productId: item.productId!,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                totalPrice: item.totalPrice,
+              })),
             },
           },
         })
 
-        // Log stock adjustment
-        await prisma.stockAdjustment.create({
-          data: {
-            productId: item.productId,
-            quantity: -item.quantity,
-            type: "DECREASE",
-            reason: `Order ${order.orderNo} completed`,
-            previousQty: product?.quantity || 0,
-            newQty: (product?.quantity || 0) - item.quantity,
-            createdBy: session.user.id,
-          },
-        })
+        // Update stock
+        for (const item of itemsWithProducts) {
+          if (item.productId) {
+            const product = await prisma.product.findUnique({
+              where: { id: item.productId },
+            })
+            
+            await prisma.product.update({
+              where: { id: item.productId },
+              data: {
+                quantity: {
+                  decrement: item.quantity,
+                },
+              },
+            })
+
+            // Log stock adjustment
+            await prisma.stockAdjustment.create({
+              data: {
+                productId: item.productId,
+                quantity: -item.quantity,
+                type: "DECREASE",
+                reason: `Order ${order.orderNo} completed`,
+                previousQty: product?.quantity || 0,
+                newQty: (product?.quantity || 0) - item.quantity,
+                createdBy: session.user.id,
+              },
+            })
+          }
+        }
       }
     }
 

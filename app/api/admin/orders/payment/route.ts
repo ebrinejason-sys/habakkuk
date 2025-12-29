@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
         customerId: order.customerId,
         totalAmount: order.totalAmount,
         netAmount: order.totalAmount,
-        paymentMethod: paymentMethod as "CASH" | "CARD" | "MOBILE_MONEY" | "INSURANCE",
+        paymentMethod: paymentMethod as "CASH" | "CARD" | "MOBILE_MONEY" | "BANK_TRANSFER",
         userId: session.user.id,
         items: {
           create: order.items
