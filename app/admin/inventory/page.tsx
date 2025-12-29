@@ -481,11 +481,13 @@ function CreateProductDialog({ onClose, onSuccess }: CreateProductDialogProps) {
 function BulkUploadDialog({ onClose, onSuccess }: CreateProductDialogProps) {
   const [file, setFile] = useState<File | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [uploadResult, setUploadResult] = useState<{ count?: number; errors?: string[]; skipped?: string[] } | null>(null)
   const { toast } = useToast()
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0])
+      setUploadResult(null)
     }
   }
 
@@ -500,6 +502,7 @@ function BulkUploadDialog({ onClose, onSuccess }: CreateProductDialogProps) {
     }
 
     setIsLoading(true)
+    setUploadResult(null)
     const formData = new FormData()
     formData.append("file", file)
 
@@ -512,23 +515,27 @@ function BulkUploadDialog({ onClose, onSuccess }: CreateProductDialogProps) {
       const data = await response.json()
 
       if (response.ok) {
+        setUploadResult({ count: data.count, errors: data.errors, skipped: data.skipped })
         toast({
           title: "Success",
           description: `${data.count} products uploaded successfully`,
         })
-        onSuccess()
+        if (!data.errors?.length && !data.skipped?.length) {
+          onSuccess()
+        }
       } else {
+        setUploadResult({ errors: data.details || [data.error], skipped: data.skipped })
         toast({
           variant: "destructive",
-          title: "Error",
-          description: data.error || "Failed to upload products",
+          title: "Upload Failed",
+          description: data.hint || data.error || "Failed to upload products",
         })
       }
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "An error occurred",
+        description: "An error occurred during upload",
       })
     } finally {
       setIsLoading(false)
@@ -547,7 +554,7 @@ function BulkUploadDialog({ onClose, onSuccess }: CreateProductDialogProps) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-lg">
+      <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <CardHeader>
           <CardTitle>Bulk Upload Products</CardTitle>
         </CardHeader>
@@ -555,11 +562,22 @@ function BulkUploadDialog({ onClose, onSuccess }: CreateProductDialogProps) {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h3 className="font-semibold text-blue-900 mb-2">Instructions:</h3>
             <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
-              <li>Upload a CSV file with product details</li>
-              <li>Required columns: name, sku, category, price, costPrice, quantity</li>
-              <li>Optional columns: reorderLevel, unitOfMeasure, description, batchNumber, manufacturer, expiryDate</li>
-              <li>Download the template for correct format</li>
+              <li>Upload a <strong>CSV or Excel</strong> file with product details</li>
+              <li>Supports Tally exports and other formats</li>
+              <li>Auto-detects columns: Name/Item Name, Price/Rate/MRP, Qty/Stock, etc.</li>
+              <li>SKU will be auto-generated if not provided</li>
             </ul>
+          </div>
+
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+            <p className="text-xs text-gray-600 font-medium mb-1">Supported column names:</p>
+            <p className="text-xs text-gray-500">
+              <strong>Name:</strong> Name, Item Name, Stock Item, Product Name<br/>
+              <strong>Price:</strong> Price, Rate, MRP, Selling Price<br/>
+              <strong>Cost:</strong> Cost Price, Purchase Price, Cost<br/>
+              <strong>Quantity:</strong> Quantity, Qty, Stock, Closing Stock<br/>
+              <strong>Category:</strong> Category, Group, Under
+            </p>
           </div>
 
           <Button
@@ -573,7 +591,7 @@ function BulkUploadDialog({ onClose, onSuccess }: CreateProductDialogProps) {
           </Button>
 
           <div className="space-y-2">
-            <Label htmlFor="file">Select CSV File</Label>
+            <Label htmlFor="file">Select File (CSV or Excel)</Label>
             <Input
               id="file"
               type="file"
@@ -581,11 +599,48 @@ function BulkUploadDialog({ onClose, onSuccess }: CreateProductDialogProps) {
               onChange={handleFileChange}
               disabled={isLoading}
             />
+            {file && (
+              <p className="text-sm text-gray-500">Selected: {file.name}</p>
+            )}
           </div>
+
+          {uploadResult && (
+            <div className={`rounded-lg p-3 ${uploadResult.count ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+              {uploadResult.count && (
+                <p className="text-green-700 font-semibold">✓ {uploadResult.count} products uploaded successfully</p>
+              )}
+              {uploadResult.errors && uploadResult.errors.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-red-700 font-semibold text-sm">Errors ({uploadResult.errors.length}):</p>
+                  <ul className="text-xs text-red-600 max-h-24 overflow-y-auto">
+                    {uploadResult.errors.slice(0, 5).map((err, i) => (
+                      <li key={i}>• {err}</li>
+                    ))}
+                    {uploadResult.errors.length > 5 && (
+                      <li>...and {uploadResult.errors.length - 5} more</li>
+                    )}
+                  </ul>
+                </div>
+              )}
+              {uploadResult.skipped && uploadResult.skipped.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-yellow-700 font-semibold text-sm">Skipped ({uploadResult.skipped.length}):</p>
+                  <ul className="text-xs text-yellow-600 max-h-24 overflow-y-auto">
+                    {uploadResult.skipped.slice(0, 3).map((skip, i) => (
+                      <li key={i}>• {skip}</li>
+                    ))}
+                    {uploadResult.skipped.length > 3 && (
+                      <li>...and {uploadResult.skipped.length - 3} more duplicates</li>
+                    )}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
-              Cancel
+              {uploadResult?.count ? "Done" : "Cancel"}
             </Button>
             <Button onClick={handleUpload} disabled={isLoading || !file}>
               {isLoading ? "Uploading..." : "Upload Products"}
