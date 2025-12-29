@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
 import { formatCurrency } from "@/lib/utils"
-import { Plus, Search, Eye, CheckCircle, XCircle, Clock, DollarSign, Truck, ShoppingBag, Printer, CreditCard } from "lucide-react"
+import { Plus, Search, Eye, CheckCircle, XCircle, Clock, DollarSign, Truck, ShoppingBag, Printer, CreditCard, Trash2, MessageSquare } from "lucide-react"
 
 interface Order {
   id: string
@@ -67,6 +67,7 @@ export default function OrdersPage() {
   const [showCustomerOrderDialog, setShowCustomerOrderDialog] = useState(false)
   const [showSupplierOrderDialog, setShowSupplierOrderDialog] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [showInquiryDialog, setShowInquiryDialog] = useState<{ type: string; entityId: string; entityName: string } | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -135,6 +136,39 @@ export default function OrdersPage() {
           variant: "destructive",
           title: "Error",
           description: data.error || "Failed to update order",
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An error occurred",
+      })
+    }
+  }
+
+  const handleDeleteOrder = async (orderId: string, orderNo: string) => {
+    if (!confirm(`Are you sure you want to delete order ${orderNo}? This action cannot be undone.`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/orders?id=${orderId}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: `Order ${orderNo} deleted successfully`,
+        })
+        fetchOrders()
+      } else {
+        const data = await response.json()
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: data.error || "Failed to delete order",
         })
       }
     } catch (error) {
@@ -290,6 +324,18 @@ export default function OrdersPage() {
         />
       )}
 
+      {showInquiryDialog && session && (
+        <InquiryDialog
+          userId={session.user.id}
+          userEmail={session.user.email!}
+          userName={session.user.name!}
+          inquiryType={showInquiryDialog.type}
+          entityId={showInquiryDialog.entityId}
+          entityName={showInquiryDialog.entityName}
+          onClose={() => setShowInquiryDialog(null)}
+        />
+      )}
+
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -380,13 +426,36 @@ export default function OrdersPage() {
                   </TableCell>
                   <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedOrder(order)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedOrder(order)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      {session?.user?.role === "ADMIN" && order.status !== "COMPLETED" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteOrder(order.id, order.orderNo)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {session?.user?.role === "STAFF" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowInquiryDialog({ type: "DELETE_REQUEST", entityId: order.id, entityName: order.orderNo })}
+                          title="Request deletion"
+                          className="text-orange-600 hover:text-orange-700"
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -1297,6 +1366,131 @@ function OrderDetailsDialog({ order, onClose, onStatusChange, onRefresh }: Order
               )}
             </div>
           </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// Inquiry Dialog Component
+interface InquiryDialogProps {
+  userId: string
+  userEmail: string
+  userName: string
+  inquiryType: string
+  entityId: string
+  entityName: string
+  onClose: () => void
+}
+
+function InquiryDialog({ userId, userEmail, userName, inquiryType, entityId, entityName, onClose }: InquiryDialogProps) {
+  const [subject, setSubject] = useState(
+    inquiryType === "DELETE_REQUEST" 
+      ? `Request to delete order ${entityName}` 
+      : `Request regarding ${entityName}`
+  )
+  const [message, setMessage] = useState(
+    inquiryType === "DELETE_REQUEST"
+      ? `I would like to request deletion of order ${entityName}.\n\nReason: `
+      : ""
+  )
+  const [isLoading, setIsLoading] = useState(false)
+  const { toast } = useToast()
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!subject || !message) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please fill in all fields",
+      })
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const response = await fetch("/api/admin/inquiries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          userEmail,
+          userName,
+          type: inquiryType,
+          subject,
+          message: `${message}\n\n---\nRelated Entity ID: ${entityId}`,
+        }),
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Request Sent",
+          description: "Your request has been sent to the administrator. You will be notified via email once it's reviewed.",
+        })
+        onClose()
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to send request",
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An error occurred",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Send Request to Admin</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+              <strong>Note:</strong> This request will be sent to the administrator for approval. You will receive an email notification once reviewed.
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="subject">Subject</Label>
+              <Input
+                id="subject"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="message">Message</Label>
+              <textarea
+                id="message"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[120px]"
+                placeholder="Please explain your request..."
+                required
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? "Sending..." : "Send Request"}
+              </Button>
+            </div>
+          </form>
         </CardContent>
       </Card>
     </div>

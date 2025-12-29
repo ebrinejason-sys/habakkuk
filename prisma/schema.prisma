@@ -199,6 +199,37 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+model Inquiry {
+  id              String   @id @default(cuid())
+  userId          String?
+  userEmail       String
+  userName        String
+  type            InquiryType
+  subject         String
+  message         String
+  status          InquiryStatus @default(PENDING)
+  adminResponse   String?
+  respondedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("inquiries")
+}
+
+enum InquiryType {
+  FEATURE_REQUEST
+  PASSWORD_RESET
+  ACCESS_REQUEST
+  DELETE_REQUEST
+  OTHER
+}
+
+enum InquiryStatus {
+  PENDING
+  RESOLVED
+  REJECTED
+}
+
 enum Role {
   CEO
   ADMIN

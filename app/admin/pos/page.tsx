@@ -233,7 +233,7 @@ export default function POSPage() {
   }
 
   const printReceipt = (transaction: any) => {
-    const printWindow = window.open("", "", "width=300,height=600")
+    const printWindow = window.open("", "", "width=800,height=1000")
     if (!printWindow) return
 
     const pharmacyName = settings?.pharmacyName || "Habakkuk Pharmacy"
@@ -242,7 +242,7 @@ export default function POSPage() {
     const email = settings?.email || ""
     const footerText = settings?.footerText || "Thank you for your purchase!"
     const currency = settings?.currency || "UGX"
-    const logoImg = settings?.logo ? `<img src="${settings.logo}" alt="Logo" style="max-width: 100px; max-height: 100px; margin: 10px auto; display: block;" />` : ""
+    const logoImg = settings?.logo ? `<img src="${settings.logo}" alt="Logo" style="width: 80px; height: 80px; object-fit: contain;" />` : ""
     const subtotal = total
     const transactionDate = new Date()
 
@@ -252,97 +252,304 @@ export default function POSPage() {
       <head>
         <title>Receipt - ${transaction.transactionNo}</title>
         <style>
+          @page { 
+            size: A4; 
+            margin: 15mm;
+          }
           @media print {
-            @page { margin: 0; }
-            body { margin: 1cm; }
+            body { margin: 0; }
+          }
+          * {
+            box-sizing: border-box;
           }
           body { 
-            font-family: 'Courier New', monospace; 
-            padding: 10px; 
-            width: 300px;
-            font-size: 12px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            padding: 20px;
+            max-width: 210mm;
+            margin: 0 auto;
+            color: #333;
+            font-size: 14px;
+            line-height: 1.6;
           }
-          .center { text-align: center; }
-          .line { border-bottom: 1px dashed #000; margin: 5px 0; }
-          .bold { font-weight: bold; }
-          table { width: 100%; border-collapse: collapse; }
-          td { padding: 2px 0; }
-          .right { text-align: right; }
-          .header { margin-bottom: 10px; }
-          .footer { margin-top: 10px; font-size: 10px; }
+          .receipt-container {
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 30px;
+            background: linear-gradient(to bottom, #fafafa, #fff);
+          }
+          .header {
+            text-align: center;
+            border-bottom: 2px dashed #ccc;
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+          }
+          .header-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+          }
+          .pharmacy-name {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin: 10px 0 5px;
+            letter-spacing: 1px;
+          }
+          .pharmacy-location {
+            font-size: 14px;
+            color: #666;
+            margin: 2px 0;
+          }
+          .pharmacy-contact {
+            font-size: 13px;
+            color: #555;
+          }
+          .receipt-title {
+            text-align: center;
+            margin: 25px 0;
+          }
+          .receipt-title h2 {
+            font-size: 22px;
+            font-weight: 600;
+            color: #2563eb;
+            margin: 0;
+            letter-spacing: 3px;
+          }
+          .receipt-info {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+          }
+          .receipt-info-item {
+            text-align: center;
+          }
+          .receipt-info-label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+          }
+          .receipt-info-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+          }
+          th {
+            background: #2563eb;
+            color: white;
+            padding: 12px 10px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          th:first-child {
+            border-radius: 6px 0 0 6px;
+          }
+          th:last-child {
+            border-radius: 0 6px 6px 0;
+            text-align: right;
+          }
+          td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+          }
+          tr:last-child td {
+            border-bottom: none;
+          }
+          tr:hover {
+            background: #fafafa;
+          }
+          .text-right {
+            text-align: right;
+          }
+          .text-center {
+            text-align: center;
+          }
+          .totals-section {
+            border-top: 2px dashed #ccc;
+            padding-top: 20px;
+            margin-top: 20px;
+          }
+          .totals-table {
+            width: 100%;
+            max-width: 350px;
+            margin-left: auto;
+          }
+          .totals-table td {
+            padding: 8px 0;
+            border: none;
+          }
+          .totals-table .total-row {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2563eb;
+            border-top: 2px solid #2563eb;
+            padding-top: 15px;
+          }
+          .payment-info {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+          }
+          .payment-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+          }
+          .change-amount {
+            color: #16a34a;
+            font-weight: 600;
+          }
+          .footer {
+            text-align: center;
+            border-top: 2px dashed #ccc;
+            padding-top: 25px;
+            margin-top: 30px;
+          }
+          .served-by {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+          }
+          .thank-you {
+            font-size: 16px;
+            font-weight: 500;
+            color: #16a34a;
+            margin: 15px 0;
+          }
+          .footer-note {
+            font-size: 12px;
+            color: #888;
+            margin-top: 10px;
+          }
+          .barcode-section {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+          }
+          .transaction-code {
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            letter-spacing: 2px;
+            color: #666;
+          }
         </style>
       </head>
       <body onload="window.print(); window.close();">
-        <div class="center header">
-          ${logoImg}
-          <h2 style="margin: 5px 0;">${pharmacyName}</h2>
-          ${location ? `<p style="margin: 2px 0;">${location}</p>` : ""}
-          ${contact ? `<p style="margin: 2px 0;">Tel: ${contact}</p>` : ""}
-          ${email ? `<p style="margin: 2px 0;">${email}</p>` : ""}
+        <div class="receipt-container">
+          <div class="header">
+            <div class="header-content">
+              ${logoImg}
+              <div>
+                <h1 class="pharmacy-name">${pharmacyName}</h1>
+                ${location ? `<p class="pharmacy-location">${location}</p>` : ""}
+                ${contact ? `<p class="pharmacy-contact">Tel: ${contact}${email ? ` | ${email}` : ""}</p>` : ""}
+              </div>
+            </div>
+          </div>
+
+          <div class="receipt-title">
+            <h2>SALES RECEIPT</h2>
+          </div>
+
+          <div class="receipt-info">
+            <div class="receipt-info-item">
+              <div class="receipt-info-label">Receipt No</div>
+              <div class="receipt-info-value">${transaction.transactionNo}</div>
+            </div>
+            <div class="receipt-info-item">
+              <div class="receipt-info-label">Date</div>
+              <div class="receipt-info-value">${transactionDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+            </div>
+            <div class="receipt-info-item">
+              <div class="receipt-info-label">Time</div>
+              <div class="receipt-info-value">${transactionDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Item Description</th>
+                <th class="text-center">Qty</th>
+                <th class="text-right">Unit Price</th>
+                <th class="text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+            ${cart.map((item, index) => `
+              <tr>
+                <td><strong>${item.name}</strong><br/><span style="font-size: 12px; color: #888;">${item.sku || ""}</span></td>
+                <td class="text-center">${item.cartQuantity} ${item.unitOfMeasure || ""}</td>
+                <td class="text-right">${formatCurrency(item.price, currency)}</td>
+                <td class="text-right"><strong>${formatCurrency(item.subtotal, currency)}</strong></td>
+              </tr>
+            `).join("")}
+            </tbody>
+          </table>
+
+          <div class="totals-section">
+            <table class="totals-table">
+              <tr>
+                <td>Subtotal</td>
+                <td class="text-right">${formatCurrency(subtotal, currency)}</td>
+              </tr>
+              ${taxRate > 0 ? `
+              <tr>
+                <td>Tax (${taxRate}%)</td>
+                <td class="text-right">${formatCurrency(taxAmount, currency)}</td>
+              </tr>
+              ` : ""}
+              <tr class="total-row">
+                <td>TOTAL</td>
+                <td class="text-right">${formatCurrency(grandTotal, currency)}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div class="payment-info">
+            <div class="payment-row">
+              <span>Payment Method:</span>
+              <strong>${paymentMethod === "MOBILE_MONEY" ? "Mobile Money" : paymentMethod}</strong>
+            </div>
+            ${paymentMethod === "CASH" && amountPaid ? `
+            <div class="payment-row">
+              <span>Amount Paid:</span>
+              <strong>${formatCurrency(parseFloat(amountPaid), currency)}</strong>
+            </div>
+            <div class="payment-row">
+              <span>Change:</span>
+              <strong class="change-amount">${formatCurrency(Math.max(0, change), currency)}</strong>
+            </div>
+            ` : ""}
+          </div>
+
+          <div class="footer">
+            <p class="served-by">Served by: ${staffName}</p>
+            <p class="thank-you">${footerText}</p>
+            <p class="footer-note">Please keep this receipt for your records</p>
+            <div class="barcode-section">
+              <p class="transaction-code">${transaction.transactionNo}</p>
+            </div>
+          </div>
         </div>
-        <div class="line"></div>
-        <div class="center">
-          <p style="margin: 5px 0;"><strong>RECEIPT</strong></p>
-          <p style="margin: 2px 0;">No: ${transaction.transactionNo}</p>
-          <p style="margin: 2px 0;">Date: ${transactionDate.toLocaleDateString()}</p>
-          <p style="margin: 2px 0;">Time: ${transactionDate.toLocaleTimeString()}</p>
-        </div>
-        <div class="line"></div>
-        <table>
-          <thead>
-            <tr>
-              <td class="bold">Item</td>
-              <td class="bold center">Qty</td>
-              <td class="bold right">Price</td>
-              <td class="bold right">Total</td>
-            </tr>
-          </thead>
-          <tbody>
-          ${cart.map((item) => `
-            <tr>
-              <td>${item.name}</td>
-              <td class="center">${item.cartQuantity} ${item.unitOfMeasure || ""}</td>
-              <td class="right">${formatCurrency(item.price, currency)}</td>
-              <td class="right">${formatCurrency(item.subtotal, currency)}</td>
-            </tr>
-          `).join("")}
-          </tbody>
-        </table>
-        <div class="line"></div>
-        <table>
-          <tr>
-            <td class="bold">Subtotal</td>
-            <td class="right bold">${formatCurrency(subtotal, currency)}</td>
-          </tr>
-          ${taxRate > 0 ? `
-          <tr>
-            <td>Tax (${taxRate}%)</td>
-            <td class="right">${formatCurrency(taxAmount, currency)}</td>
-          </tr>
-          ` : ""}
-          <tr>
-            <td class="bold">Total</td>
-            <td class="right bold">${formatCurrency(grandTotal, currency)}</td>
-          </tr>
-          ${paymentMethod === "CASH" && amountPaid ? `
-          <tr>
-            <td>Amount Paid</td>
-            <td class="right">${formatCurrency(parseFloat(amountPaid), currency)}</td>
-          </tr>
-          <tr>
-            <td class="bold">Change</td>
-            <td class="right bold">${formatCurrency(Math.max(0, change), currency)}</td>
-          </tr>
-          ` : ""}
-          <tr>
-            <td>Payment Method</td>
-            <td class="right">${paymentMethod}</td>
-          </tr>
-        </table>
-        <div class="line"></div>
-        <p class="center footer"><strong>Served by: ${staffName}</strong></p>
-        <p class="center footer">${footerText}</p>
-        <p class="center footer">Please keep this receipt for your records</p>
       </body>
       </html>
     `
@@ -770,102 +977,130 @@ function ReceiptPreviewDialog({
   const currentDate = new Date()
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-sm max-h-[90vh] overflow-y-auto">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center justify-between">
-            <span>Receipt Preview</span>
-            <Button variant="ghost" size="sm" onClick={onClose}>×</Button>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <Card className="w-full max-w-2xl my-8">
+        <CardHeader className="pb-2 flex flex-row items-center justify-between border-b">
+          <CardTitle className="flex items-center gap-2">
+            <Printer className="h-5 w-5" />
+            A4 Receipt Preview
           </CardTitle>
+          <Button variant="ghost" size="sm" onClick={onClose}>×</Button>
         </CardHeader>
-        <CardContent className="font-mono text-sm">
-          {/* Header */}
-          <div className="text-center space-y-1 mb-4">
-            {settings?.logo && (
-              <img 
-                src={settings.logo} 
-                alt="Logo" 
-                className="w-16 h-16 mx-auto object-contain"
-              />
-            )}
-            <h3 className="font-bold text-lg">{pharmacyName}</h3>
-            {location && <p className="text-xs text-gray-600">{location}</p>}
-            {contact && <p className="text-xs text-gray-600">Tel: {contact}</p>}
-            {email && <p className="text-xs text-gray-600">{email}</p>}
-          </div>
+        <CardContent className="p-6">
+          {/* Receipt Preview - A4 Style */}
+          <div className="border-2 border-gray-200 rounded-xl p-6 bg-gradient-to-b from-gray-50 to-white">
+            {/* Header */}
+            <div className="text-center border-b-2 border-dashed border-gray-300 pb-5 mb-5">
+              {settings?.logo && (
+                <img 
+                  src={settings.logo} 
+                  alt="Logo" 
+                  className="w-20 h-20 mx-auto object-contain mb-3"
+                />
+              )}
+              <h2 className="text-2xl font-bold text-gray-900 tracking-wide">{pharmacyName}</h2>
+              {location && <p className="text-sm text-gray-600 mt-1">{location}</p>}
+              {contact && <p className="text-sm text-gray-500">Tel: {contact}{email ? ` | ${email}` : ""}</p>}
+            </div>
 
-          <div className="border-t border-dashed border-gray-400 my-3"></div>
+            {/* Receipt Title */}
+            <div className="text-center mb-5">
+              <h3 className="text-xl font-semibold text-blue-600 tracking-[0.2em]">SALES RECEIPT</h3>
+            </div>
 
-          {/* Receipt Info */}
-          <div className="text-center space-y-1 mb-3">
-            <p className="font-bold">RECEIPT</p>
-            <p className="text-xs">No: TXN-XXXXXX</p>
-            <p className="text-xs">Date: {currentDate.toLocaleDateString()}</p>
-            <p className="text-xs">Time: {currentDate.toLocaleTimeString()}</p>
-          </div>
-
-          <div className="border-t border-dashed border-gray-400 my-3"></div>
-
-          {/* Items */}
-          <div className="space-y-2 mb-3">
-            {cart.map((item) => (
-              <div key={item.id} className="flex justify-between text-xs">
-                <div className="flex-1">
-                  <span>{item.name}</span>
-                  <span className="text-gray-500 ml-1">x{item.cartQuantity}</span>
-                </div>
-                <span>{formatCurrency(item.subtotal, currency)}</span>
+            {/* Receipt Info */}
+            <div className="grid grid-cols-3 gap-3 bg-gray-100 rounded-lg p-3 mb-5">
+              <div className="text-center">
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Receipt No</p>
+                <p className="font-semibold text-sm">TXN-PREVIEW</p>
               </div>
-            ))}
-          </div>
-
-          <div className="border-t border-dashed border-gray-400 my-3"></div>
-
-          {/* Totals */}
-          <div className="space-y-1 text-xs">
-            <div className="flex justify-between">
-              <span>Subtotal</span>
-              <span>{formatCurrency(total, currency)}</span>
-            </div>
-            {taxRate > 0 && (
-              <div className="flex justify-between text-gray-600">
-                <span>Tax ({taxRate}%)</span>
-                <span>{formatCurrency(taxAmount, currency)}</span>
+              <div className="text-center">
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Date</p>
+                <p className="font-semibold text-sm">{currentDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
               </div>
-            )}
-            <div className="flex justify-between font-bold text-base">
-              <span>Total</span>
-              <span>{formatCurrency(grandTotal, currency)}</span>
+              <div className="text-center">
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Time</p>
+                <p className="font-semibold text-sm">{currentDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</p>
+              </div>
             </div>
-            {paymentMethod === "CASH" && amountPaid && (
-              <>
-                <div className="flex justify-between">
-                  <span>Amount Paid</span>
-                  <span>{formatCurrency(parseFloat(amountPaid), currency)}</span>
-                </div>
-                <div className="flex justify-between font-bold text-green-600">
-                  <span>Change</span>
-                  <span>{formatCurrency(Math.max(0, change), currency)}</span>
-                </div>
-              </>
-            )}
-            <div className="flex justify-between">
-              <span>Payment</span>
-              <span>{paymentMethod}</span>
+
+            {/* Items Table */}
+            <div className="mb-5">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-blue-600 text-white">
+                    <th className="text-left py-2 px-3 rounded-l-lg font-medium">Item</th>
+                    <th className="text-center py-2 px-3 font-medium">Qty</th>
+                    <th className="text-right py-2 px-3 font-medium">Price</th>
+                    <th className="text-right py-2 px-3 rounded-r-lg font-medium">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cart.map((item) => (
+                    <tr key={item.id} className="border-b border-gray-100">
+                      <td className="py-2 px-3">
+                        <span className="font-medium">{item.name}</span>
+                        {item.sku && <span className="text-xs text-gray-400 block">{item.sku}</span>}
+                      </td>
+                      <td className="text-center py-2 px-3">{item.cartQuantity}</td>
+                      <td className="text-right py-2 px-3">{formatCurrency(item.price, currency)}</td>
+                      <td className="text-right py-2 px-3 font-semibold">{formatCurrency(item.subtotal, currency)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
 
-          <div className="border-t border-dashed border-gray-400 my-3"></div>
+            {/* Totals */}
+            <div className="border-t-2 border-dashed border-gray-300 pt-4">
+              <div className="max-w-xs ml-auto space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span>Subtotal</span>
+                  <span>{formatCurrency(total, currency)}</span>
+                </div>
+                {taxRate > 0 && (
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>Tax ({taxRate}%)</span>
+                    <span>{formatCurrency(taxAmount, currency)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-lg font-bold text-blue-600 border-t-2 border-blue-600 pt-2 mt-2">
+                  <span>TOTAL</span>
+                  <span>{formatCurrency(grandTotal, currency)}</span>
+                </div>
+              </div>
+            </div>
 
-          {/* Footer */}
-          <div className="text-center space-y-1 text-xs text-gray-600">
-            <p className="font-semibold text-gray-800">Served by: {staffName}</p>
-            <p>{footerText}</p>
-            <p>Please keep this receipt for your records</p>
+            {/* Payment Info */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 my-4">
+              <div className="flex justify-between text-sm">
+                <span>Payment Method:</span>
+                <span className="font-semibold">{paymentMethod === "MOBILE_MONEY" ? "Mobile Money" : paymentMethod}</span>
+              </div>
+              {paymentMethod === "CASH" && amountPaid && (
+                <>
+                  <div className="flex justify-between text-sm mt-1">
+                    <span>Amount Paid:</span>
+                    <span className="font-semibold">{formatCurrency(parseFloat(amountPaid), currency)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm mt-1">
+                    <span>Change:</span>
+                    <span className="font-semibold text-green-600">{formatCurrency(Math.max(0, change), currency)}</span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="text-center border-t-2 border-dashed border-gray-300 pt-5 mt-5 space-y-2">
+              <p className="font-semibold text-gray-800">Served by: {staffName}</p>
+              <p className="text-green-600 font-medium">{footerText}</p>
+              <p className="text-xs text-gray-500">Please keep this receipt for your records</p>
+            </div>
           </div>
 
           <div className="mt-4 flex justify-end">
-            <Button onClick={onClose}>Close</Button>
+            <Button onClick={onClose}>Close Preview</Button>
           </div>
         </CardContent>
       </Card>

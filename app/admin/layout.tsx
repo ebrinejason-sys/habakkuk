@@ -15,7 +15,9 @@ import {
   Menu,
   X,
   UserCheck,
-  ClipboardList
+  ClipboardList,
+  MessageSquare,
+  Activity
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
@@ -41,17 +43,22 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: "Customers", href: "/admin/customers", icon: UserCheck, permission: "MANAGE_POS" },
     { name: "Orders", href: "/admin/orders", icon: ClipboardList, permission: "MANAGE_POS" },
     { name: "Transactions", href: "/admin/transactions", icon: DollarSign, permission: "VIEW_TRANSACTIONS" },
+    { name: "Inquiries", href: "/admin/inquiries", icon: MessageSquare, adminOnly: true },
+    { name: "Activity Log", href: "/admin/activity-log", icon: Activity, adminOnly: true },
     { name: "Settings", href: "/admin/settings", icon: Settings, permission: "MANAGE_SETTINGS" },
   ]
 
-  const hasPermission = (permission?: string) => {
+  const hasPermission = (permission?: string, adminOnly?: boolean) => {
+    if (adminOnly) {
+      return session?.user.role === "ADMIN" || session?.user.role === "CEO"
+    }
     if (!permission) return true
     if (session?.user.role === "ADMIN") return true
     if (session?.user.role === "CEO") return true // CEO can view everything
     return session?.user.permissions?.includes(permission as any)
   }
 
-  const filteredNavigation = navigation.filter(item => hasPermission(item.permission))
+  const filteredNavigation = navigation.filter(item => hasPermission(item.permission, item.adminOnly))
 
   return (
     <div className="min-h-screen bg-gray-50">
