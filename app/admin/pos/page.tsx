@@ -111,9 +111,10 @@ export default function POSPage() {
   }
 
   // Use memoized filtered products with debounced search for better INP
+  // Show only 20 products initially, search to find more
   const filteredProducts = useMemo(() => {
     const query = debouncedSearchQuery.toLowerCase()
-    if (!query) return products
+    if (!query) return products.slice(0, 20) // Show first 20 when no search
     return products.filter(
       (p) =>
         p.name.toLowerCase().includes(query) ||
