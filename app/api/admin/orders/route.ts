@@ -134,7 +134,6 @@ export async function POST(request: NextRequest) {
         items: {
           create: orderItems,
         },
-        createdByUserId: session.user.id,
       },
       include: {
         customer: true,
