@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2 } from "lucide-react"
+import { Loader2, Upload, X } from "lucide-react"
+import Image from "next/image"
 
 interface Settings {
   pharmacyName: string
@@ -20,6 +21,7 @@ interface Settings {
   footerText: string
   currency: string
   taxRate: number
+  logo?: string
 }
 
 export default function SettingsPage() {
@@ -31,9 +33,12 @@ export default function SettingsPage() {
     footerText: "",
     currency: "UGX",
     taxRate: 0,
+    logo: "",
   })
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string>("")
   const { toast } = useToast()
 
   useEffect(() => {
@@ -47,6 +52,9 @@ export default function SettingsPage() {
         const data = await response.json()
         if (data) {
           setSettings(data)
+          if (data.logo) {
+            setLogoPreview(data.logo)
+          }
         }
       }
     } catch (error) {
@@ -56,15 +64,42 @@ export default function SettingsPage() {
     }
   }
 
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setLogoFile(file)
+      
+      // Create preview
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const removeLogo = () => {
+    setLogoFile(null)
+    setLogoPreview("")
+    setSettings({ ...settings, logo: "" })
+  }
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSaving(true)
 
     try {
+      let logoData = settings.logo
+      
+      // If new logo file is selected, use the preview (base64)
+      if (logoFile && logoPreview) {
+        logoData = logoPreview
+      }
+
       const response = await fetch("/api/admin/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
+        body: JSON.stringify({ ...settings, logo: logoData }),
       })
 
       if (response.ok) {
@@ -72,6 +107,7 @@ export default function SettingsPage() {
           title: "Success",
           description: "Settings saved successfully",
         })
+        setLogoFile(null)
       } else {
         toast({
           variant: "destructive",
@@ -111,6 +147,39 @@ export default function SettingsPage() {
             <CardTitle>Pharmacy Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Pharmacy Logo</Label>
+              <div className="flex items-center gap-4">
+                {logoPreview && (
+                  <div className="relative w-32 h-32 border rounded-lg overflow-hidden">
+                    <Image
+                      src={logoPreview}
+                      alt="Logo preview"
+                      fill
+                      className="object-contain"
+                    />
+                    <button
+                      type="button"
+                      onClick={removeLogo}
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                      title="Remove Logo"
+                      aria-label="Remove Logo"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+                <div>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoChange}
+                    className="mb-2"
+                  />
+                  <p className="text-xs text-gray-500">Upload your pharmacy logo (PNG, JPG, or GIF)</p>
+                </div>
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="pharmacyName">Pharmacy Name *</Label>

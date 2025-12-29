@@ -64,6 +64,7 @@ model Product {
   costPrice         Float
   quantity          Int      @default(0)
   reorderLevel      Int      @default(10)
+  unitOfMeasure     String   @default("Unit")
   expiryDate        DateTime?
   manufacturer      String?
   batchNumber       String?

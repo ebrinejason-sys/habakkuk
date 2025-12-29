@@ -12,7 +12,9 @@ import {
   Settings, 
   LogOut,
   Menu,
-  X
+  X,
+  UserCheck,
+  ClipboardList
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
@@ -35,6 +37,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: "Users", href: "/admin/users", icon: Users, permission: "MANAGE_USERS" },
     { name: "Inventory", href: "/admin/inventory", icon: Package, permission: "MANAGE_INVENTORY" },
     { name: "POS", href: "/admin/pos", icon: ShoppingCart, permission: "MANAGE_POS" },
+    { name: "Customers", href: "/admin/customers", icon: UserCheck, permission: "MANAGE_POS" },
+    { name: "Orders", href: "/admin/orders", icon: ClipboardList, permission: "MANAGE_POS" },
     { name: "Transactions", href: "/admin/transactions", icon: DollarSign, permission: "VIEW_TRANSACTIONS" },
     { name: "Settings", href: "/admin/settings", icon: Settings, permission: "MANAGE_SETTINGS" },
   ]

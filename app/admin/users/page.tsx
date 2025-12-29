@@ -27,6 +27,8 @@ export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -49,6 +51,44 @@ export default function UsersPage() {
     }
   }
 
+  const handleEdit = (user: User) => {
+    setSelectedUser(user)
+    setShowEditDialog(true)
+  }
+
+  const handleDelete = async (userId: string) => {
+    if (!confirm("Are you sure you want to delete this user?")) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/users?id=${userId}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "User deleted successfully",
+        })
+        fetchUsers()
+      } else {
+        const data = await response.json()
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: data.error || "Failed to delete user",
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An error occurred",
+      })
+    }
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -67,6 +107,21 @@ export default function UsersPage() {
           onClose={() => setShowCreateDialog(false)}
           onSuccess={() => {
             setShowCreateDialog(false)
+            fetchUsers()
+          }}
+        />
+      )}
+
+      {showEditDialog && selectedUser && (
+        <EditUserDialog
+          user={selectedUser}
+          onClose={() => {
+            setShowEditDialog(false)
+            setSelectedUser(null)
+          }}
+          onSuccess={() => {
+            setShowEditDialog(false)
+            setSelectedUser(null)
             fetchUsers()
           }}
         />
@@ -112,11 +167,11 @@ export default function UsersPage() {
                     </TableCell>
                     <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(user)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm">
-                        <Trash2 className="h-4 w-4" />
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(user.id)}>
+                        <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -238,6 +293,7 @@ function CreateUserDialog({ onClose, onSuccess }: CreateUserDialogProps) {
                 onChange={(e) => setRole(e.target.value as "ADMIN" | "STAFF")}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 disabled={isLoading}
+                title="Select Role"
               >
                 <option value="STAFF">Staff</option>
                 <option value="ADMIN">Admin</option>
@@ -287,6 +343,185 @@ function CreateUserDialog({ onClose, onSuccess }: CreateUserDialogProps) {
                     <Mail className="mr-2 h-4 w-4" />
                     Create & Send Email
                   </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+interface EditUserDialogProps {
+  user: User
+  onClose: () => void
+  onSuccess: () => void
+}
+
+function EditUserDialog({ user, onClose, onSuccess }: EditUserDialogProps) {
+  const [name, setName] = useState(user.name)
+  const [role, setRole] = useState<"ADMIN" | "STAFF">(user.role as "ADMIN" | "STAFF")
+  const [permissions, setPermissions] = useState<Permission[]>(user.permissions)
+  const [isActive, setIsActive] = useState(user.isActive)
+  const [isLoading, setIsLoading] = useState(false)
+  const { toast } = useToast()
+
+  const availablePermissions: Permission[] = [
+    "MANAGE_USERS",
+    "MANAGE_SETTINGS",
+    "MANAGE_INVENTORY",
+    "VIEW_INVENTORY",
+    "MANAGE_POS",
+    "VIEW_TRANSACTIONS",
+    "MANAGE_TRANSACTIONS",
+    "VIEW_REPORTS",
+  ]
+
+  const togglePermission = (permission: Permission) => {
+    setPermissions((prev) =>
+      prev.includes(permission)
+        ? prev.filter((p) => p !== permission)
+        : [...prev, permission]
+    )
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: user.id, name, role, permissions, isActive }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "User updated successfully",
+        })
+        onSuccess()
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: data.error || "Failed to update user",
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An error occurred",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <CardHeader>
+          <CardTitle>Edit User</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Full Name</Label>
+              <Input
+                id="edit-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={user.email}
+                disabled
+                className="bg-gray-100"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-role">Role</Label>
+              <select
+                id="edit-role"
+                value={role}
+                onChange={(e) => setRole(e.target.value as "ADMIN" | "STAFF")}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                disabled={isLoading}
+                title="Select Role"
+              >
+                <option value="STAFF">Staff</option>
+                <option value="ADMIN">Admin</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={isActive}
+                  onChange={(e) => setIsActive(e.target.checked)}
+                  className="mr-2"
+                  disabled={isLoading}
+                  title="Active Account Status"
+                />
+                Active Account
+              </Label>
+            </div>
+
+            {role === "STAFF" && (
+              <div className="space-y-2">
+                <Label>Permissions</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {availablePermissions.map((permission) => (
+                    <label
+                      key={permission}
+                      className="flex items-center space-x-2 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={permissions.includes(permission)}
+                        onChange={() => togglePermission(permission)}
+                        className="rounded"
+                        disabled={isLoading}
+                      />
+                      <span className="text-sm">{permission.replace(/_/g, " ")}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={isLoading}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  "Update User"
                 )}
               </Button>
             </div>

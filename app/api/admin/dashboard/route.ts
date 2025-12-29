@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
       todaySalesData,
       lowStockCount,
       pendingOrders,
+      expiringProducts,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.product.count({ where: { isActive: true } }),
@@ -43,6 +44,26 @@ export async function GET(request: NextRequest) {
       prisma.order.count({
         where: { status: "PENDING" },
       }),
+      // Get products expiring in next 30 days
+      prisma.product.findMany({
+        where: {
+          isActive: true,
+          expiryDate: {
+            lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            gte: new Date(),
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          sku: true,
+          expiryDate: true,
+          quantity: true,
+        },
+        orderBy: {
+          expiryDate: 'asc',
+        },
+      }),
     ])
 
     return NextResponse.json({
@@ -52,6 +73,7 @@ export async function GET(request: NextRequest) {
       todaySales: todaySalesData._sum.netAmount || 0,
       lowStockCount,
       pendingOrders,
+      expiringProducts,
     })
   } catch (error) {
     console.error("Dashboard stats error:", error)

@@ -21,6 +21,7 @@ interface Product {
   price: number
   quantity: number
   reorderLevel: number
+  unitOfMeasure: string
   expiryDate?: string
 }
 
@@ -205,6 +206,8 @@ function CreateProductDialog({ onClose, onSuccess }: CreateProductDialogProps) {
     costPrice: "",
     quantity: "",
     reorderLevel: "10",
+    unitOfMeasure: "Unit",
+    barcode: "",
     description: "",
   })
   const [isLoading, setIsLoading] = useState(false)
@@ -224,6 +227,8 @@ function CreateProductDialog({ onClose, onSuccess }: CreateProductDialogProps) {
           costPrice: parseFloat(formData.costPrice),
           quantity: parseInt(formData.quantity),
           reorderLevel: parseInt(formData.reorderLevel),
+          unitOfMeasure: formData.unitOfMeasure,
+          barcode: formData.barcode || null,
         }),
       })
 
@@ -278,8 +283,15 @@ function CreateProductDialog({ onClose, onSuccess }: CreateProductDialogProps) {
                   onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                   required
                 />
-              </div>
-              <div className="space-y-2">
+              </div>              <div className="space-y-2">
+                <Label htmlFor="barcode">Barcode</Label>
+                <Input
+                  id="barcode"
+                  value={formData.barcode}
+                  onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                  placeholder="Scan or enter barcode"
+                />
+              </div>              <div className="space-y-2">
                 <Label htmlFor="category">Category *</Label>
                 <Input
                   id="category"
@@ -319,8 +331,30 @@ function CreateProductDialog({ onClose, onSuccess }: CreateProductDialogProps) {
                   onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
                   required
                 />
-              </div>
-              <div className="space-y-2 col-span-2">
+              </div>              <div className="space-y-2">
+                <Label htmlFor="unitOfMeasure">Unit of Measure</Label>
+                <select
+                  id="unitOfMeasure"
+                  value={formData.unitOfMeasure}
+                  onChange={(e) => setFormData({ ...formData, unitOfMeasure: e.target.value })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  title="Unit of Measure"
+                >
+                  <option value="Unit">Unit</option>
+                  <option value="Box">Box</option>
+                  <option value="Strip">Strip</option>
+                  <option value="Bottle">Bottle</option>
+                  <option value="Pack">Pack</option>
+                  <option value="Tube">Tube</option>
+                  <option value="Vial">Vial</option>
+                  <option value="Sachet">Sachet</option>
+                  <option value="Carton">Carton</option>
+                  <option value="ml">ml</option>
+                  <option value="g">g</option>
+                  <option value="kg">kg</option>
+                  <option value="L">L</option>
+                </select>
+              </div>              <div className="space-y-2 col-span-2">
                 <Label htmlFor="description">Description</Label>
                 <Input
                   id="description"
@@ -402,7 +436,7 @@ function BulkUploadDialog({ onClose, onSuccess }: CreateProductDialogProps) {
   }
 
   const downloadTemplate = () => {
-    const csvContent = "name,sku,category,price,costPrice,quantity,reorderLevel,description\nParacetamol 500mg,PAR500,Pain Relief,5000,3000,100,20,Pain and fever relief\nIbuprofen 400mg,IBU400,Pain Relief,8000,5000,150,25,Anti-inflammatory"
+    const csvContent = "name,sku,barcode,category,price,costPrice,quantity,reorderLevel,unitOfMeasure,description\nParacetamol 500mg,PAR500,123456789,Pain Relief,5000,3000,100,20,Strip,Pain and fever relief\nIbuprofen 400mg,IBU400,987654321,Pain Relief,8000,5000,150,25,Box,Anti-inflammatory"
     const blob = new Blob([csvContent], { type: "text/csv" })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement("a")
@@ -423,6 +457,7 @@ function BulkUploadDialog({ onClose, onSuccess }: CreateProductDialogProps) {
             <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
               <li>Upload a CSV file with product details</li>
               <li>Required columns: name, sku, category, price, costPrice, quantity</li>
+              <li>Optional columns: reorderLevel, unitOfMeasure, description</li>
               <li>Download the template for correct format</li>
             </ul>
           </div>

@@ -52,11 +52,13 @@ export async function POST(request: NextRequest) {
       data: {
         name: data.name,
         sku: data.sku,
+        barcode: data.barcode,
         category: data.category,
         price: data.price,
         costPrice: data.costPrice,
         quantity: data.quantity,
         reorderLevel: data.reorderLevel || 10,
+        unitOfMeasure: data.unitOfMeasure || "Unit",
         description: data.description,
       },
     })

@@ -56,11 +56,13 @@ export async function POST(request: NextRequest) {
       productsToCreate.push({
         name: data.name,
         sku: data.sku,
+        barcode: data.barcode || null,
         category: data.category,
         price: parseFloat(data.price),
         costPrice: parseFloat(data.costPrice),
         quantity: parseInt(data.quantity),
         reorderLevel: data.reorderLevel ? parseInt(data.reorderLevel) : 10,
+        unitOfMeasure: data.unitOfMeasure || "Unit",
         description: data.description || null,
       })
     }

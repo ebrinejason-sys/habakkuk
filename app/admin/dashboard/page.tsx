@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Package, DollarSign, ShoppingCart, TrendingUp, AlertTriangle } from "lucide-react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Users, Package, DollarSign, ShoppingCart, TrendingUp, AlertTriangle, Calendar } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 
 // Force dynamic rendering
@@ -15,6 +16,13 @@ interface DashboardStats {
   todaySales: number
   lowStockCount: number
   pendingOrders: number
+  expiringProducts: Array<{
+    id: string
+    name: string
+    sku: string
+    expiryDate: string
+    quantity: number
+  }>
 }
 
 export default function AdminDashboard() {
@@ -117,6 +125,41 @@ export default function AdminDashboard() {
           )
         })}
       </div>
+
+      {stats?.expiringProducts && stats.expiringProducts.length > 0 && (
+        <Card className="mt-6 border-amber-200 bg-amber-50">
+          <CardHeader>
+            <CardTitle className="flex items-center text-amber-800">
+              <Calendar className="h-5 w-5 mr-2" />
+              Products Expiring Soon (Next 30 Days)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Stock</TableHead>
+                  <TableHead>Expiry Date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {stats.expiringProducts.map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell>{product.sku}</TableCell>
+                    <TableCell>{product.quantity}</TableCell>
+                    <TableCell className="text-red-600 font-semibold">
+                      {new Date(product.expiryDate).toLocaleDateString()}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

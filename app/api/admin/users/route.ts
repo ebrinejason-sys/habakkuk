@@ -123,3 +123,98 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+
+    if (!session || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const userId = searchParams.get("id")
+
+    if (!userId) {
+      return NextResponse.json({ error: "User ID required" }, { status: 400 })
+    }
+
+    // Prevent self-deletion
+    if (userId === session.user.id) {
+      return NextResponse.json(
+        { error: "Cannot delete your own account" },
+        { status: 400 }
+      )
+    }
+
+    // Delete user
+    await prisma.user.delete({
+      where: { id: userId },
+    })
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: session.user.id,
+        action: "DELETE_USER",
+        entity: "USER",
+        entityId: userId,
+        details: "Deleted user account",
+      },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Delete user error:", error)
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+
+    if (!session || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const { id, name, role, permissions, isActive } = await request.json()
+
+    if (!id) {
+      return NextResponse.json({ error: "User ID required" }, { status: 400 })
+    }
+
+    // Update user
+    const user = await prisma.user.update({
+      where: { id },
+      data: {
+        name,
+        role,
+        permissions: role === "ADMIN" ? [] : permissions || [],
+        isActive,
+      },
+    })
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: session.user.id,
+        action: "UPDATE_USER",
+        entity: "USER",
+        entityId: user.id,
+        details: `Updated user: ${name}`,
+      },
+    })
+
+    return NextResponse.json({ success: true, user })
+  } catch (error) {
+    console.error("Update user error:", error)
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    )
+  }
+}

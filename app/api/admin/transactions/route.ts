@@ -19,12 +19,29 @@ export async function GET(request: NextRequest) {
             name: true,
           },
         },
+        items: {
+          include: {
+            product: {
+              select: {
+                costPrice: true,
+              },
+            },
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
-      take: 50,
+      take: 100,
     })
 
-    // Calculate stats
+    // Calculate profit for each period
+    const calculateProfit = (items: any[]) => {
+      return items.reduce((total: number, item: any) => {
+        const profit = (item.unitPrice - item.product.costPrice) * item.quantity
+        return total + profit
+      }, 0)
+    }
+
+    // Define date boundaries FIRST before using them
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
@@ -34,6 +51,46 @@ export async function GET(request: NextRequest) {
     const monthAgo = new Date()
     monthAgo.setMonth(monthAgo.getMonth() - 1)
 
+    const todayTransactions = await prisma.transaction.findMany({
+      where: { status: "COMPLETED", createdAt: { gte: today } },
+      include: {
+        items: {
+          include: {
+            product: {
+              select: { costPrice: true },
+            },
+          },
+        },
+      },
+    })
+
+    const weekTransactions = await prisma.transaction.findMany({
+      where: { status: "COMPLETED", createdAt: { gte: weekAgo } },
+      include: {
+        items: {
+          include: {
+            product: {
+              select: { costPrice: true },
+            },
+          },
+        },
+      },
+    })
+
+    const monthTransactions = await prisma.transaction.findMany({
+      where: { status: "COMPLETED", createdAt: { gte: monthAgo } },
+      include: {
+        items: {
+          include: {
+            product: {
+              select: { costPrice: true },
+            },
+          },
+        },
+      },
+    })
+
+    // Calculate stats
     const [todayStats, weekStats, monthStats] = await Promise.all([
       prisma.transaction.aggregate({
         _sum: { netAmount: true },
@@ -55,6 +112,9 @@ export async function GET(request: NextRequest) {
         today: todayStats._sum.netAmount || 0,
         week: weekStats._sum.netAmount || 0,
         month: monthStats._sum.netAmount || 0,
+        todayProfit: todayTransactions.reduce((sum, t) => sum + calculateProfit(t.items), 0),
+        weekProfit: weekTransactions.reduce((sum, t) => sum + calculateProfit(t.items), 0),
+        monthProfit: monthTransactions.reduce((sum, t) => sum + calculateProfit(t.items), 0),
       },
     })
   } catch (error) {
