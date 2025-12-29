@@ -83,3 +83,61 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const data = await request.json()
+
+    if (!data.id) {
+      return NextResponse.json({ error: "Product ID is required" }, { status: 400 })
+    }
+
+    const existingProduct = await prisma.product.findUnique({
+      where: { id: data.id },
+    })
+
+    if (!existingProduct) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 })
+    }
+
+    const product = await prisma.product.update({
+      where: { id: data.id },
+      data: {
+        name: data.name,
+        barcode: data.barcode,
+        category: data.category,
+        price: data.price,
+        costPrice: data.costPrice,
+        quantity: data.quantity,
+        reorderLevel: data.reorderLevel || 10,
+        unitOfMeasure: data.unitOfMeasure || "Unit",
+        description: data.description,
+      },
+    })
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: session.user.id,
+        action: "UPDATE_PRODUCT",
+        entity: "PRODUCT",
+        entityId: product.id,
+        details: `Updated product: ${product.name} (${product.sku})`,
+      },
+    })
+
+    return NextResponse.json(product)
+  } catch (error) {
+    console.error("Update product error:", error)
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    )
+  }
+}

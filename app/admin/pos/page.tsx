@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSession } from "next-auth/react"
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -12,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
 import { formatCurrency, generateTransactionNo } from "@/lib/utils"
-import { Search, ShoppingCart, Trash2, Printer, Clock } from "lucide-react"
+import { Search, ShoppingCart, Trash2, Printer, Clock, Eye, Calculator } from "lucide-react"
 
 interface Product {
   id: string
@@ -41,6 +42,7 @@ interface Settings {
 }
 
 export default function POSPage() {
+  const { data: session } = useSession()
   const [products, setProducts] = useState<Product[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -48,6 +50,8 @@ export default function POSPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [settings, setSettings] = useState<Settings | null>(null)
   const [showOrderDialog, setShowOrderDialog] = useState(false)
+  const [showReceiptPreview, setShowReceiptPreview] = useState(false)
+  const [amountPaid, setAmountPaid] = useState("")
   const { toast } = useToast()
 
   useEffect(() => {
@@ -71,13 +75,18 @@ export default function POSPage() {
     try {
       const response = await fetch("/api/admin/inventory")
       const data = await response.json()
-      setProducts(data.filter((p: Product) => p.quantity > 0))
+      if (Array.isArray(data)) {
+        setProducts(data.filter((p: Product) => p.quantity > 0))
+      } else {
+        setProducts([])
+      }
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to fetch products",
       })
+      setProducts([])
     }
   }
 
@@ -159,6 +168,11 @@ export default function POSPage() {
   }
 
   const total = cart.reduce((sum, item) => sum + item.subtotal, 0)
+  const taxRate = settings?.taxRate || 0
+  const taxAmount = total * (taxRate / 100)
+  const grandTotal = total + taxAmount
+  const change = amountPaid ? parseFloat(amountPaid) - grandTotal : 0
+  const staffName = session?.user?.name || "Staff"
 
   const processTransaction = async () => {
     if (cart.length === 0) {
@@ -229,10 +243,8 @@ export default function POSPage() {
     const footerText = settings?.footerText || "Thank you for your purchase!"
     const currency = settings?.currency || "UGX"
     const logoImg = settings?.logo ? `<img src="${settings.logo}" alt="Logo" style="max-width: 100px; max-height: 100px; margin: 10px auto; display: block;" />` : ""
-    const taxRate = settings?.taxRate || 0
     const subtotal = total
-    const tax = subtotal * (taxRate / 100)
-    const totalWithTax = subtotal + tax
+    const transactionDate = new Date()
 
     const receiptHTML = `
       <!DOCTYPE html>
@@ -272,7 +284,8 @@ export default function POSPage() {
         <div class="center">
           <p style="margin: 5px 0;"><strong>RECEIPT</strong></p>
           <p style="margin: 2px 0;">No: ${transaction.transactionNo}</p>
-          <p style="margin: 2px 0;">${new Date().toLocaleString()}</p>
+          <p style="margin: 2px 0;">Date: ${transactionDate.toLocaleDateString()}</p>
+          <p style="margin: 2px 0;">Time: ${transactionDate.toLocaleTimeString()}</p>
         </div>
         <div class="line"></div>
         <table>
@@ -304,11 +317,21 @@ export default function POSPage() {
           ${taxRate > 0 ? `
           <tr>
             <td>Tax (${taxRate}%)</td>
-            <td class="right">${formatCurrency(tax, currency)}</td>
+            <td class="right">${formatCurrency(taxAmount, currency)}</td>
           </tr>
+          ` : ""}
           <tr>
             <td class="bold">Total</td>
-            <td class="right bold">${formatCurrency(totalWithTax, currency)}</td>
+            <td class="right bold">${formatCurrency(grandTotal, currency)}</td>
+          </tr>
+          ${paymentMethod === "CASH" && amountPaid ? `
+          <tr>
+            <td>Amount Paid</td>
+            <td class="right">${formatCurrency(parseFloat(amountPaid), currency)}</td>
+          </tr>
+          <tr>
+            <td class="bold">Change</td>
+            <td class="right bold">${formatCurrency(Math.max(0, change), currency)}</td>
           </tr>
           ` : ""}
           <tr>
@@ -317,8 +340,8 @@ export default function POSPage() {
           </tr>
         </table>
         <div class="line"></div>
+        <p class="center footer"><strong>Served by: ${staffName}</strong></p>
         <p class="center footer">${footerText}</p>
-        <p class="center footer">Served by: ${transaction.userName || "Staff"}</p>
         <p class="center footer">Please keep this receipt for your records</p>
       </body>
       </html>
@@ -356,6 +379,22 @@ export default function POSPage() {
             setShowOrderDialog(false)
             fetchProducts()
           }}
+        />
+      )}
+
+      {showReceiptPreview && (
+        <ReceiptPreviewDialog
+          cart={cart}
+          settings={settings}
+          total={total}
+          taxRate={taxRate}
+          taxAmount={taxAmount}
+          grandTotal={grandTotal}
+          amountPaid={amountPaid}
+          change={change}
+          paymentMethod={paymentMethod}
+          staffName={staffName}
+          onClose={() => setShowReceiptPreview(false)}
         />
       )}
 
@@ -439,9 +478,19 @@ export default function POSPage() {
               </div>
 
               <div className="border-t mt-4 pt-4 space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span>Subtotal</span>
+                  <span>{formatCurrency(total)}</span>
+                </div>
+                {taxRate > 0 && (
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>Tax ({taxRate}%)</span>
+                    <span>{formatCurrency(taxAmount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-lg font-bold">
                   <span>Total</span>
-                  <span>{formatCurrency(total)}</span>
+                  <span>{formatCurrency(grandTotal)}</span>
                 </div>
 
                 <div className="space-y-2">
@@ -459,10 +508,50 @@ export default function POSPage() {
                   </select>
                 </div>
 
+                {paymentMethod === "CASH" && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium flex items-center">
+                      <Calculator className="h-4 w-4 mr-1" />
+                      Amount Paid
+                    </label>
+                    <Input
+                      type="number"
+                      placeholder="Enter amount paid"
+                      value={amountPaid}
+                      onChange={(e) => setAmountPaid(e.target.value)}
+                    />
+                    {amountPaid && parseFloat(amountPaid) >= grandTotal && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-2">
+                        <div className="flex justify-between text-green-800 font-semibold">
+                          <span>Change</span>
+                          <span>{formatCurrency(change)}</span>
+                        </div>
+                      </div>
+                    )}
+                    {amountPaid && parseFloat(amountPaid) < grandTotal && (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-2">
+                        <div className="text-red-800 text-sm">
+                          Insufficient amount. Need {formatCurrency(grandTotal - parseFloat(amountPaid))} more.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setShowReceiptPreview(true)}
+                  disabled={cart.length === 0}
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  Preview Receipt
+                </Button>
+
                 <Button
                   onClick={processTransaction}
                   className="w-full"
-                  disabled={isProcessing || cart.length === 0}
+                  disabled={isProcessing || cart.length === 0 || (paymentMethod === "CASH" && !!amountPaid && parseFloat(amountPaid) < grandTotal)}
                 >
                   {isProcessing ? "Processing..." : "Complete Sale"}
                 </Button>
@@ -504,9 +593,18 @@ function SaveOrderDialog({ cart, onClose, onSuccess }: SaveOrderDialogProps) {
   }, [])
 
   const fetchCustomers = async () => {
-    const response = await fetch("/api/admin/customers")
-    const data = await response.json()
-    setCustomers(data)
+    try {
+      const response = await fetch("/api/admin/customers")
+      const data = await response.json()
+      if (Array.isArray(data)) {
+        setCustomers(data)
+      } else {
+        setCustomers([])
+      }
+    } catch (error) {
+      console.error("Failed to fetch customers:", error)
+      setCustomers([])
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -630,6 +728,145 @@ function SaveOrderDialog({ cart, onClose, onSuccess }: SaveOrderDialogProps) {
               </Button>
             </div>
           </form>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+interface ReceiptPreviewDialogProps {
+  cart: CartItem[]
+  settings: Settings | null
+  total: number
+  taxRate: number
+  taxAmount: number
+  grandTotal: number
+  amountPaid: string
+  change: number
+  paymentMethod: string
+  staffName: string
+  onClose: () => void
+}
+
+function ReceiptPreviewDialog({
+  cart,
+  settings,
+  total,
+  taxRate,
+  taxAmount,
+  grandTotal,
+  amountPaid,
+  change,
+  paymentMethod,
+  staffName,
+  onClose,
+}: ReceiptPreviewDialogProps) {
+  const currency = settings?.currency || "UGX"
+  const pharmacyName = settings?.pharmacyName || "Habakkuk Pharmacy"
+  const location = settings?.location || ""
+  const contact = settings?.contact || ""
+  const email = settings?.email || ""
+  const footerText = settings?.footerText || "Thank you for your purchase!"
+  const currentDate = new Date()
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-sm max-h-[90vh] overflow-y-auto">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center justify-between">
+            <span>Receipt Preview</span>
+            <Button variant="ghost" size="sm" onClick={onClose}>×</Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="font-mono text-sm">
+          {/* Header */}
+          <div className="text-center space-y-1 mb-4">
+            {settings?.logo && (
+              <img 
+                src={settings.logo} 
+                alt="Logo" 
+                className="w-16 h-16 mx-auto object-contain"
+              />
+            )}
+            <h3 className="font-bold text-lg">{pharmacyName}</h3>
+            {location && <p className="text-xs text-gray-600">{location}</p>}
+            {contact && <p className="text-xs text-gray-600">Tel: {contact}</p>}
+            {email && <p className="text-xs text-gray-600">{email}</p>}
+          </div>
+
+          <div className="border-t border-dashed border-gray-400 my-3"></div>
+
+          {/* Receipt Info */}
+          <div className="text-center space-y-1 mb-3">
+            <p className="font-bold">RECEIPT</p>
+            <p className="text-xs">No: TXN-XXXXXX</p>
+            <p className="text-xs">Date: {currentDate.toLocaleDateString()}</p>
+            <p className="text-xs">Time: {currentDate.toLocaleTimeString()}</p>
+          </div>
+
+          <div className="border-t border-dashed border-gray-400 my-3"></div>
+
+          {/* Items */}
+          <div className="space-y-2 mb-3">
+            {cart.map((item) => (
+              <div key={item.id} className="flex justify-between text-xs">
+                <div className="flex-1">
+                  <span>{item.name}</span>
+                  <span className="text-gray-500 ml-1">x{item.cartQuantity}</span>
+                </div>
+                <span>{formatCurrency(item.subtotal, currency)}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t border-dashed border-gray-400 my-3"></div>
+
+          {/* Totals */}
+          <div className="space-y-1 text-xs">
+            <div className="flex justify-between">
+              <span>Subtotal</span>
+              <span>{formatCurrency(total, currency)}</span>
+            </div>
+            {taxRate > 0 && (
+              <div className="flex justify-between text-gray-600">
+                <span>Tax ({taxRate}%)</span>
+                <span>{formatCurrency(taxAmount, currency)}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-bold text-base">
+              <span>Total</span>
+              <span>{formatCurrency(grandTotal, currency)}</span>
+            </div>
+            {paymentMethod === "CASH" && amountPaid && (
+              <>
+                <div className="flex justify-between">
+                  <span>Amount Paid</span>
+                  <span>{formatCurrency(parseFloat(amountPaid), currency)}</span>
+                </div>
+                <div className="flex justify-between font-bold text-green-600">
+                  <span>Change</span>
+                  <span>{formatCurrency(Math.max(0, change), currency)}</span>
+                </div>
+              </>
+            )}
+            <div className="flex justify-between">
+              <span>Payment</span>
+              <span>{paymentMethod}</span>
+            </div>
+          </div>
+
+          <div className="border-t border-dashed border-gray-400 my-3"></div>
+
+          {/* Footer */}
+          <div className="text-center space-y-1 text-xs text-gray-600">
+            <p className="font-semibold text-gray-800">Served by: {staffName}</p>
+            <p>{footerText}</p>
+            <p>Please keep this receipt for your records</p>
+          </div>
+
+          <div className="mt-4 flex justify-end">
+            <Button onClick={onClose}>Close</Button>
+          </div>
         </CardContent>
       </Card>
     </div>

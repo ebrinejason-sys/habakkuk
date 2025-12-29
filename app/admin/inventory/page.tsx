@@ -10,18 +10,22 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
-import { Plus, Upload, Search, Edit, AlertTriangle, Package } from "lucide-react"
+import { Plus, Upload, Search, Edit, AlertTriangle, Package, PackagePlus } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 
 interface Product {
   id: string
   name: string
   sku: string
+  barcode?: string
   category: string
   price: number
+  costPrice: number
   quantity: number
+  initialStock?: number
   reorderLevel: number
   unitOfMeasure: string
+  description?: string
   expiryDate?: string
 }
 
@@ -31,6 +35,9 @@ export default function InventoryPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showBulkUpload, setShowBulkUpload] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [showUpdateStock, setShowUpdateStock] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
 
@@ -52,20 +59,33 @@ export default function InventoryPage() {
     try {
       const response = await fetch("/api/admin/inventory")
       const data = await response.json()
-      setProducts(data)
-      setFilteredProducts(data)
+      if (Array.isArray(data)) {
+        setProducts(data)
+        setFilteredProducts(data)
+      } else {
+        setProducts([])
+        setFilteredProducts([])
+      }
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to fetch products",
       })
+      setProducts([])
+      setFilteredProducts([])
     } finally {
       setIsLoading(false)
     }
   }
 
-  const lowStockProducts = products.filter((p) => p.quantity <= p.reorderLevel)
+  // Low stock: if current stock is <= half of initial stock or <= reorderLevel
+  const isLowStock = (product: Product) => {
+    const initialStock = product.initialStock || product.reorderLevel * 2
+    return product.quantity <= Math.max(initialStock / 2, product.reorderLevel)
+  }
+
+  const lowStockProducts = products.filter((p) => p.quantity > 0 && isLowStock(p))
 
   return (
     <div>
@@ -75,6 +95,10 @@ export default function InventoryPage() {
           <p className="text-gray-500 mt-2">Manage your pharmacy stock and products</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowUpdateStock(true)}>
+            <PackagePlus className="h-4 w-4 mr-2" />
+            Update Stock
+          </Button>
           <Button variant="outline" onClick={() => setShowBulkUpload(true)}>
             <Upload className="h-4 w-4 mr-2" />
             Bulk Upload
@@ -91,15 +115,49 @@ export default function InventoryPage() {
           <CardHeader>
             <CardTitle className="flex items-center text-orange-800">
               <AlertTriangle className="h-5 w-5 mr-2" />
-              Low Stock Alert
+              Low Stock Alert - Replenishment Needed
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-orange-700">
-              {lowStockProducts.length} product(s) are running low on stock.
+            <p className="text-sm text-orange-700 mb-2">
+              {lowStockProducts.length} product(s) need stock replenishment:
             </p>
+            <ul className="text-sm text-orange-700 space-y-1">
+              {lowStockProducts.slice(0, 5).map((p) => (
+                <li key={p.id}>• {p.name} - Current: {p.quantity} units</li>
+              ))}
+              {lowStockProducts.length > 5 && (
+                <li className="font-semibold">...and {lowStockProducts.length - 5} more</li>
+              )}
+            </ul>
           </CardContent>
         </Card>
+      )}
+
+      {showEditDialog && selectedProduct && (
+        <EditProductDialog
+          product={selectedProduct}
+          onClose={() => {
+            setShowEditDialog(false)
+            setSelectedProduct(null)
+          }}
+          onSuccess={() => {
+            setShowEditDialog(false)
+            setSelectedProduct(null)
+            fetchProducts()
+          }}
+        />
+      )}
+
+      {showUpdateStock && (
+        <UpdateStockDialog
+          products={products}
+          onClose={() => setShowUpdateStock(false)}
+          onSuccess={() => {
+            setShowUpdateStock(false)
+            fetchProducts()
+          }}
+        />
       )}
 
       {showCreateDialog && (
@@ -167,9 +225,9 @@ export default function InventoryPage() {
                       <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-700">
                         Out of Stock
                       </span>
-                    ) : product.quantity <= product.reorderLevel ? (
+                    ) : isLowStock(product) ? (
                       <span className="px-2 py-1 text-xs rounded-full bg-orange-100 text-orange-700">
-                        Low Stock
+                        Low Stock - Replenish
                       </span>
                     ) : (
                       <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">
@@ -178,7 +236,15 @@ export default function InventoryPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedProduct(product)
+                        setShowEditDialog(true)
+                      }}
+                      title="Edit Product"
+                    >
                       <Edit className="h-4 w-4" />
                     </Button>
                   </TableCell>
@@ -489,6 +555,412 @@ function BulkUploadDialog({ onClose, onSuccess }: CreateProductDialogProps) {
             </Button>
             <Button onClick={handleUpload} disabled={isLoading || !file}>
               {isLoading ? "Uploading..." : "Upload Products"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+interface EditProductDialogProps {
+  product: Product
+  onClose: () => void
+  onSuccess: () => void
+}
+
+function EditProductDialog({ product, onClose, onSuccess }: EditProductDialogProps) {
+  const [formData, setFormData] = useState({
+    name: product.name,
+    sku: product.sku,
+    barcode: product.barcode || "",
+    category: product.category,
+    price: product.price.toString(),
+    costPrice: product.costPrice?.toString() || "0",
+    quantity: product.quantity.toString(),
+    reorderLevel: product.reorderLevel?.toString() || "10",
+    unitOfMeasure: product.unitOfMeasure || "Unit",
+    description: product.description || "",
+  })
+  const [isLoading, setIsLoading] = useState(false)
+  const { toast } = useToast()
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+
+    try {
+      const response = await fetch("/api/admin/inventory", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: product.id,
+          ...formData,
+          price: parseFloat(formData.price),
+          costPrice: parseFloat(formData.costPrice),
+          quantity: parseInt(formData.quantity),
+          reorderLevel: parseInt(formData.reorderLevel),
+          barcode: formData.barcode || null,
+        }),
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Product updated successfully",
+        })
+        onSuccess()
+      } else {
+        const data = await response.json()
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: data.error || "Failed to update product",
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An error occurred",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <CardHeader>
+          <CardTitle>Edit Product</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Product Name *</Label>
+                <Input
+                  id="edit-name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-sku">SKU *</Label>
+                <Input
+                  id="edit-sku"
+                  value={formData.sku}
+                  onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                  required
+                  disabled
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-barcode">Barcode</Label>
+                <Input
+                  id="edit-barcode"
+                  value={formData.barcode}
+                  onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-category">Category *</Label>
+                <Input
+                  id="edit-category"
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-price">Price *</Label>
+                <Input
+                  id="edit-price"
+                  type="number"
+                  step="0.01"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-costPrice">Cost Price *</Label>
+                <Input
+                  id="edit-costPrice"
+                  type="number"
+                  step="0.01"
+                  value={formData.costPrice}
+                  onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-quantity">Quantity</Label>
+                <Input
+                  id="edit-quantity"
+                  type="number"
+                  value={formData.quantity}
+                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-reorderLevel">Reorder Level</Label>
+                <Input
+                  id="edit-reorderLevel"
+                  type="number"
+                  value={formData.reorderLevel}
+                  onChange={(e) => setFormData({ ...formData, reorderLevel: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-unitOfMeasure">Unit of Measure</Label>
+                <select
+                  id="edit-unitOfMeasure"
+                  value={formData.unitOfMeasure}
+                  onChange={(e) => setFormData({ ...formData, unitOfMeasure: e.target.value })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  title="Unit of Measure"
+                >
+                  <option value="Unit">Unit</option>
+                  <option value="Box">Box</option>
+                  <option value="Strip">Strip</option>
+                  <option value="Bottle">Bottle</option>
+                  <option value="Pack">Pack</option>
+                  <option value="Tube">Tube</option>
+                  <option value="Vial">Vial</option>
+                  <option value="Sachet">Sachet</option>
+                  <option value="Carton">Carton</option>
+                  <option value="ml">ml</option>
+                  <option value="g">g</option>
+                  <option value="kg">kg</option>
+                  <option value="L">L</option>
+                </select>
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label htmlFor="edit-description">Description</Label>
+                <Input
+                  id="edit-description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+interface UpdateStockDialogProps {
+  products: Product[]
+  onClose: () => void
+  onSuccess: () => void
+}
+
+function UpdateStockDialog({ products, onClose, onSuccess }: UpdateStockDialogProps) {
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [unitsToAdd, setUnitsToAdd] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const { toast } = useToast()
+
+  const filteredProducts = products.filter(
+    (p) =>
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.sku.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const handleUpdateStock = async () => {
+    if (!selectedProduct || !unitsToAdd) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please select a product and enter quantity to add",
+      })
+      return
+    }
+
+    const addQuantity = parseInt(unitsToAdd)
+    if (isNaN(addQuantity) || addQuantity <= 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter a valid positive number",
+      })
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const response = await fetch("/api/admin/inventory/stock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: selectedProduct.id,
+          quantity: addQuantity,
+          type: "INCREASE",
+          reason: "Stock replenishment",
+        }),
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: `Added ${addQuantity} units to ${selectedProduct.name}. New stock: ${selectedProduct.quantity + addQuantity}`,
+        })
+        onSuccess()
+      } else {
+        const data = await response.json()
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: data.error || "Failed to update stock",
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An error occurred",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const incrementUnits = (amount: number) => {
+    const current = parseInt(unitsToAdd) || 0
+    setUnitsToAdd((current + amount).toString())
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <PackagePlus className="h-5 w-5 mr-2" />
+            Update Stock
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!selectedProduct ? (
+            <>
+              <div className="space-y-2">
+                <Label>Search Product</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search by name or SKU..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              <div className="max-h-64 overflow-y-auto border rounded-lg">
+                {filteredProducts.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500">
+                    No products found
+                  </div>
+                ) : (
+                  filteredProducts.map((product) => (
+                    <button
+                      key={product.id}
+                      onClick={() => setSelectedProduct(product)}
+                      className="w-full p-3 text-left hover:bg-gray-50 border-b last:border-b-0 transition-colors"
+                    >
+                      <div className="font-medium">{product.name}</div>
+                      <div className="text-sm text-gray-500">
+                        SKU: {product.sku} | Current Stock: {product.quantity} {product.unitOfMeasure}
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="font-semibold text-blue-900">{selectedProduct.name}</h3>
+                <p className="text-sm text-blue-800">SKU: {selectedProduct.sku}</p>
+                <p className="text-sm text-blue-800 mt-2">
+                  Current Stock: <strong>{selectedProduct.quantity} {selectedProduct.unitOfMeasure}</strong>
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="units-to-add">Basic Units to Add</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="units-to-add"
+                    type="number"
+                    min="1"
+                    value={unitsToAdd}
+                    onChange={(e) => setUnitsToAdd(e.target.value)}
+                    placeholder="Enter quantity"
+                    className="flex-1"
+                  />
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <Button type="button" variant="outline" size="sm" onClick={() => incrementUnits(10)}>
+                    +10
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => incrementUnits(25)}>
+                    +25
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => incrementUnits(50)}>
+                    +50
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => incrementUnits(100)}>
+                    +100
+                  </Button>
+                </div>
+              </div>
+
+              {unitsToAdd && parseInt(unitsToAdd) > 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <p className="text-sm text-green-800">
+                    New Stock after update: <strong>{selectedProduct.quantity + parseInt(unitsToAdd)} {selectedProduct.unitOfMeasure}</strong>
+                  </p>
+                </div>
+              )}
+
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setSelectedProduct(null)
+                  setUnitsToAdd("")
+                }}
+              >
+                ← Select Different Product
+              </Button>
+            </>
+          )}
+
+          <div className="flex justify-end space-x-2 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateStock}
+              disabled={isLoading || !selectedProduct || !unitsToAdd}
+            >
+              {isLoading ? "Updating..." : "Update Stock"}
             </Button>
           </div>
         </CardContent>
