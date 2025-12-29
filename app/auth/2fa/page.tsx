@@ -53,19 +53,28 @@ function TwoFactorContent() {
           description: "2FA verification successful. Redirecting...",
         })
         
-        // Now sign in with NextAuth
+        // Now sign in with NextAuth using the verified user's ID as a special token
         const { signIn } = await import("next-auth/react")
         const result = await signIn("credentials", {
-          email,
-          password: "verified", // Special flag for 2FA-verified session
+          email: data.user.email,
+          password: `2FA_VERIFIED:${data.user.id}`, // Special token for 2FA-verified session
           redirect: false,
-          callbackUrl: "/admin/dashboard",
         })
 
         if (result?.ok) {
-          router.push("/admin/dashboard")
+          if (data.user.mustChangePassword) {
+            router.push("/change-password")
+          } else if (data.user.role === "ADMIN") {
+            router.push("/admin/dashboard")
+          } else {
+            router.push("/staff/dashboard")
+          }
         } else {
-          router.push("/login")
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to create session",
+          })
         }
       } else {
         toast({

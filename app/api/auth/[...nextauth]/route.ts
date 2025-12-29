@@ -24,6 +24,23 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid credentials")
         }
 
+        // Check if this is a 2FA-verified session (special token passed)
+        if (credentials.password.startsWith("2FA_VERIFIED:")) {
+          const token = credentials.password.replace("2FA_VERIFIED:", "")
+          // Verify the token matches user ID (simple verification)
+          if (token === user.id) {
+            return {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              role: user.role,
+              permissions: user.permissions,
+              mustChangePassword: user.mustChangePassword,
+            }
+          }
+          throw new Error("Invalid 2FA session")
+        }
+
         const isPasswordValid = await bcrypt.compare(
           credentials.password,
           user.password

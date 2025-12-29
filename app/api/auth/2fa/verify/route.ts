@@ -64,9 +64,23 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Return user data for session creation
+    const fullUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        permissions: true,
+        mustChangePassword: true,
+      },
+    })
+
     return NextResponse.json({
       success: true,
       message: "2FA verification successful",
+      user: fullUser,
     })
   } catch (error) {
     console.error("2FA verify error:", error)
