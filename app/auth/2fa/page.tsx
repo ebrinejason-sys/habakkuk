@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -137,8 +138,14 @@ function TwoFactorContent() {
       <Card className="w-full max-w-md shadow-2xl border-0">
         <CardHeader className="space-y-3 text-center pb-6">
           <div className="flex justify-center mb-2">
-            <div className="w-20 h-20 bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <ShieldCheck className="h-10 w-10 text-white" />
+            <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-lg">
+              <Image
+                src="/logo.png"
+                alt="Habakkuk Pharmacy Logo"
+                width={80}
+                height={80}
+                className="object-cover"
+              />
             </div>
           </div>
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">

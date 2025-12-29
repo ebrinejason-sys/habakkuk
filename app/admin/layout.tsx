@@ -3,6 +3,7 @@
 import { useSession, signOut } from "next-auth/react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { 
   LayoutDashboard, 
   Users, 
@@ -70,8 +71,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-4 border-b bg-white/80 backdrop-blur-sm">
             <Link href="/admin/dashboard" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
-                <span className="text-sm font-bold text-white">HP</span>
+              <div className="w-10 h-10 rounded-lg overflow-hidden shadow-lg">
+                <Image
+                  src="/logo.png"
+                  alt="Habakkuk Pharmacy Logo"
+                  width={40}
+                  height={40}
+                  className="object-cover"
+                />
               </div>
               <div className="flex flex-col">
                 <span className="font-bold text-base">Habakkuk</span>

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -96,8 +97,14 @@ export default function LoginPage() {
       <Card className="w-full max-w-md shadow-2xl border-0">
         <CardHeader className="space-y-3 text-center pb-6">
           <div className="flex justify-center mb-2">
-            <div className="w-20 h-20 bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <span className="text-3xl font-bold text-white">HP</span>
+            <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-lg">
+              <Image
+                src="/logo.png"
+                alt="Habakkuk Pharmacy Logo"
+                width={80}
+                height={80}
+                className="object-cover"
+              />
             </div>
           </div>
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
