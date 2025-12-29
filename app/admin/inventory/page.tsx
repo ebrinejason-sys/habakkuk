@@ -1,6 +1,16 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
+
+// Debounce hook for better INP performance
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value)
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay)
+    return () => clearTimeout(handler)
+  }, [value, delay])
+  return debouncedValue
+}
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -33,7 +43,6 @@ interface Product {
 
 export default function InventoryPage() {
   const [products, setProducts] = useState<Product[]>([])
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showBulkUpload, setShowBulkUpload] = useState(false)
@@ -43,19 +52,24 @@ export default function InventoryPage() {
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
 
+  // Debounce search for better INP performance
+  const debouncedSearchQuery = useDebounce(searchQuery, 300)
+
+  // Memoized filtered products using debounced search
+  const filteredProducts = useMemo(() => {
+    const query = debouncedSearchQuery.toLowerCase()
+    if (!query) return products
+    return products.filter(
+      (product) =>
+        product.name.toLowerCase().includes(query) ||
+        product.sku.toLowerCase().includes(query) ||
+        product.category.toLowerCase().includes(query)
+    )
+  }, [debouncedSearchQuery, products])
+
   useEffect(() => {
     fetchProducts()
   }, [])
-
-  useEffect(() => {
-    const filtered = products.filter(
-      (product) =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.category.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-    setFilteredProducts(filtered)
-  }, [searchQuery, products])
 
   const fetchProducts = async () => {
     try {
@@ -63,10 +77,8 @@ export default function InventoryPage() {
       const data = await response.json()
       if (Array.isArray(data)) {
         setProducts(data)
-        setFilteredProducts(data)
       } else {
         setProducts([])
-        setFilteredProducts([])
       }
     } catch (error) {
       toast({
@@ -75,7 +87,6 @@ export default function InventoryPage() {
         description: "Failed to fetch products",
       })
       setProducts([])
-      setFilteredProducts([])
     } finally {
       setIsLoading(false)
     }

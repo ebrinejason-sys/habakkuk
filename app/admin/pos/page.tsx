@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
 import { useSession } from "next-auth/react"
 
 // Force dynamic rendering
@@ -14,6 +14,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast"
 import { formatCurrency, generateTransactionNo } from "@/lib/utils"
 import { Search, ShoppingCart, Trash2, Printer, Clock, Eye, Calculator } from "lucide-react"
+
+// Debounce hook for search
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value)
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      clearTimeout(handler)
+    }
+  }, [value, delay])
+
+  return debouncedValue
+} from "lucide-react"
 
 interface Product {
   id: string
@@ -54,6 +71,9 @@ export default function POSPage() {
   const [amountPaid, setAmountPaid] = useState("")
   const { toast } = useToast()
 
+  // Debounce search query for better performance
+  const debouncedSearchQuery = useDebounce(searchQuery, 300)
+
   useEffect(() => {
     fetchProducts()
     fetchSettings()
@@ -90,12 +110,17 @@ export default function POSPage() {
     }
   }
 
-  const filteredProducts = products.filter(
-    (p) =>
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.barcode && p.barcode.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
+  // Use memoized filtered products with debounced search for better INP
+  const filteredProducts = useMemo(() => {
+    const query = debouncedSearchQuery.toLowerCase()
+    if (!query) return products
+    return products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(query) ||
+        p.sku.toLowerCase().includes(query) ||
+        (p.barcode && p.barcode.toLowerCase().includes(query))
+    )
+  }, [products, debouncedSearchQuery])
 
   const addToCart = (product: Product) => {
     const existingItem = cart.find((item) => item.id === product.id)

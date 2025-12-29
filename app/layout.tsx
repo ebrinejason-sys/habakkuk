@@ -17,7 +17,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="scroll-smooth">
+    <html lang="en">
       <head>
         <title>Habakkuk Pharmacy - Modern POS System</title>
         <meta name="description" content="Complete Pharmacy Point of Sale System with inventory management, staff portal, and customer ordering" />
