@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         name: true,
+        username: true,
         email: true,
         role: true,
         permissions: true,
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { name, email, role, permissions } = await request.json()
+    const { name, email, username, role, permissions } = await request.json()
 
     if (!name || !email || !role) {
       return NextResponse.json(
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user already exists
+    // Check if user already exists by email
     const existingUser = await prisma.user.findUnique({
       where: { email },
     })
@@ -69,6 +70,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if username is already taken (if provided)
+    if (username) {
+      const existingUsername = await prisma.user.findUnique({
+        where: { username: username.toLowerCase() },
+      })
+
+      if (existingUsername) {
+        return NextResponse.json(
+          { error: "Username is already taken" },
+          { status: 400 }
+        )
+      }
+    }
+
     // Generate password
     const password = generatePassword()
     const hashedPassword = await bcrypt.hash(password, 10)
@@ -78,6 +93,7 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         email,
+        username: username ? username.toLowerCase() : null,
         password: hashedPassword,
         role,
         permissions: role === "ADMIN" ? [] : permissions || [],
@@ -197,7 +213,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { id, name, role, permissions, isActive, resetPassword } = await request.json()
+    const { id, name, username, role, permissions, isActive, resetPassword } = await request.json()
 
     if (!id) {
       return NextResponse.json({ error: "User ID required" }, { status: 400 })
@@ -266,11 +282,29 @@ export async function PATCH(request: NextRequest) {
       })
     }
 
+    // Check if username is already taken by another user (if provided)
+    if (username) {
+      const existingUsername = await prisma.user.findFirst({
+        where: { 
+          username: username.toLowerCase(),
+          NOT: { id }
+        },
+      })
+
+      if (existingUsername) {
+        return NextResponse.json(
+          { error: "Username is already taken" },
+          { status: 400 }
+        )
+      }
+    }
+
     // Update user
     const user = await prisma.user.update({
       where: { id },
       data: {
         name,
+        username: username ? username.toLowerCase() : null,
         role,
         permissions: role === "ADMIN" ? [] : permissions || [],
         isActive,

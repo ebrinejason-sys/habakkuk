@@ -16,6 +16,7 @@ import { Permission } from "@prisma/client"
 interface User {
   id: string
   name: string
+  username: string | null
   email: string
   role: string
   permissions: Permission[]
@@ -141,6 +142,7 @@ export default function UsersPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Username</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
@@ -152,6 +154,7 @@ export default function UsersPage() {
                 {users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name}</TableCell>
+                    <TableCell className="text-gray-500">{user.username || "—"}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
                       <span className="px-2 py-1 text-xs rounded-full bg-primary/10 text-primary">
@@ -192,6 +195,7 @@ interface CreateUserDialogProps {
 
 function CreateUserDialog({ onClose, onSuccess }: CreateUserDialogProps) {
   const [name, setName] = useState("")
+  const [username, setUsername] = useState("")
   const [email, setEmail] = useState("")
   const [role, setRole] = useState<"CEO" | "ADMIN" | "STAFF">("STAFF")
   const [permissions, setPermissions] = useState<Permission[]>([])
@@ -225,7 +229,13 @@ function CreateUserDialog({ onClose, onSuccess }: CreateUserDialogProps) {
       const response = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, role, permissions }),
+        body: JSON.stringify({ 
+          name, 
+          email, 
+          username: username.trim() || undefined,
+          role, 
+          permissions 
+        }),
       })
 
       const data = await response.json()
@@ -271,6 +281,18 @@ function CreateUserDialog({ onClose, onSuccess }: CreateUserDialogProps) {
                 required
                 disabled={isLoading}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="username">Username (Optional)</Label>
+              <Input
+                id="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                placeholder="e.g., john_doe"
+                disabled={isLoading}
+              />
+              <p className="text-xs text-gray-500">Users can login with either email or username</p>
             </div>
 
             <div className="space-y-2">
@@ -367,6 +389,7 @@ interface EditUserDialogProps {
 
 function EditUserDialog({ user, onClose, onSuccess }: EditUserDialogProps) {
   const [name, setName] = useState(user.name)
+  const [username, setUsername] = useState(user.username || "")
   const [role, setRole] = useState<"CEO" | "ADMIN" | "STAFF">(user.role as "CEO" | "ADMIN" | "STAFF")
   const [permissions, setPermissions] = useState<Permission[]>(user.permissions)
   const [isActive, setIsActive] = useState(user.isActive)
@@ -400,7 +423,14 @@ function EditUserDialog({ user, onClose, onSuccess }: EditUserDialogProps) {
       const response = await fetch("/api/admin/users", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: user.id, name, role, permissions, isActive }),
+        body: JSON.stringify({ 
+          id: user.id, 
+          name, 
+          username: username.trim() || null,
+          role, 
+          permissions, 
+          isActive 
+        }),
       })
 
       const data = await response.json()
@@ -446,6 +476,18 @@ function EditUserDialog({ user, onClose, onSuccess }: EditUserDialogProps) {
                 required
                 disabled={isLoading}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-username">Username (Optional)</Label>
+              <Input
+                id="edit-username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                placeholder="e.g., john_doe"
+                disabled={isLoading}
+              />
+              <p className="text-xs text-gray-500">Users can login with either email or username</p>
             </div>
 
             <div className="space-y-2">

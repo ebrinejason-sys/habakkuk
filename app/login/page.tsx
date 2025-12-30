@@ -17,7 +17,7 @@ interface Settings {
 }
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("")
+  const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [settings, setSettings] = useState<Settings | null>(null)
@@ -49,7 +49,7 @@ export default function LoginPage() {
       const checkResponse = await fetch("/api/auth/check-2fa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ identifier, password }),
       })
 
       const checkData = await checkResponse.json()
@@ -59,7 +59,7 @@ export default function LoginPage() {
         const sendResponse = await fetch("/api/auth/2fa/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email: checkData.email }),
         })
 
         const sendData = await sendResponse.json()
@@ -70,14 +70,14 @@ export default function LoginPage() {
             title: "2FA Required",
             description: `Verification code sent to ${sendData.sentTo}`,
           })
-          router.push(`/auth/2fa?email=${encodeURIComponent(email)}&sentTo=${encodeURIComponent(sendData.sentTo)}`)
+          router.push(`/auth/2fa?email=${encodeURIComponent(checkData.email)}&sentTo=${encodeURIComponent(sendData.sentTo)}`)
           return
         }
       }
 
       // Normal login flow for non-2FA users
       const result = await signIn("credentials", {
-        email,
+        identifier,
         password,
         redirect: false,
       })
@@ -86,7 +86,7 @@ export default function LoginPage() {
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Invalid email or password",
+          description: "Invalid email/username or password",
         })
       } else {
         // Fetch session to determine where to redirect
@@ -136,13 +136,13 @@ export default function LoginPage() {
         <CardContent className="px-6 pb-6">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">Email Address</Label>
+              <Label htmlFor="identifier" className="text-sm font-medium">Email or Username</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="your@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="identifier"
+                type="text"
+                placeholder="your@email.com or username"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 required
                 disabled={isLoading}
                 className="h-11 transition-all duration-200 focus:ring-2 focus:ring-emerald-500"
