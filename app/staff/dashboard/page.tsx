@@ -20,21 +20,21 @@ export default function StaffDashboard() {
       description: "View and manage product inventory",
       icon: Package,
       permission: "VIEW_INVENTORY",
-      action: () => router.push("/admin/inventory"),
+      action: () => router.push("/portal/inventory"),
     },
     {
       title: "POS",
       description: "Process sales and transactions",
       icon: ShoppingCart,
       permission: "MANAGE_POS",
-      action: () => router.push("/admin/pos"),
+      action: () => router.push("/portal/pos"),
     },
     {
       title: "Transactions",
       description: "View transaction history",
       icon: Eye,
       permission: "VIEW_TRANSACTIONS",
-      action: () => router.push("/admin/transactions"),
+      action: () => router.push("/portal/transactions"),
     },
   ]
 

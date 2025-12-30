@@ -76,7 +76,7 @@ export function NotificationBell() {
     }
     
     if (notification.type === "NEW_ORDER" || notification.type === "ORDER_CLAIMED") {
-      router.push("/admin/orders")
+      router.push("/portal/orders")
     }
     
     setIsOpen(false)
@@ -206,7 +206,7 @@ export function NotificationBell() {
                   size="sm"
                   className="text-sm text-primary"
                   onClick={() => {
-                    router.push("/admin/orders")
+                    router.push("/portal/orders")
                     setIsOpen(false)
                   }}
                 >

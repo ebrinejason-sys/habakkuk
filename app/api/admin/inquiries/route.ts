@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
             </div>
             
             <p style="margin-top: 30px;">
-              <a href="${process.env.NEXT_PUBLIC_APP_URL}/admin/inquiries" 
+              <a href="${process.env.NEXT_PUBLIC_APP_URL}/portal/inquiries" 
                  style="display: inline-block; padding: 12px 30px; background-color: #4F46E5; color: white; text-decoration: none; border-radius: 5px;">
                 View in Dashboard
               </a>

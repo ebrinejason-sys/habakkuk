@@ -96,10 +96,9 @@ export default function LoginPage() {
         if (session?.user) {
           if (session.user.mustChangePassword) {
             router.push("/change-password")
-          } else if (session.user.role === "ADMIN") {
-            router.push("/admin/dashboard")
           } else {
-            router.push("/staff/dashboard")
+            // All users (admin and staff) go to portal
+            router.push("/portal/dashboard")
           }
         }
       }

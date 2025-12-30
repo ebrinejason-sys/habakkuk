@@ -293,7 +293,7 @@ function generateNewOrderEmail(
             </tbody>
           </table>
           
-          <a href="${process.env.NEXT_PUBLIC_APP_URL}/admin/orders" class="button">View & Claim Order</a>
+          <a href="${process.env.NEXT_PUBLIC_APP_URL}/portal/orders" class="button">View & Claim Order</a>
           
           <p style="margin-top: 30px; font-size: 12px; color: #666;">
             This order will be assigned to the first staff member who claims it.

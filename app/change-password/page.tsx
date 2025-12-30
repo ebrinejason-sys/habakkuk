@@ -21,7 +21,7 @@ export default function ChangePasswordPage() {
 
   useEffect(() => {
     if (session && !session.user.mustChangePassword) {
-      router.push(session.user.role === "ADMIN" ? "/admin/dashboard" : "/staff/dashboard")
+      router.push(session.user.role === "ADMIN" ? "/portal/dashboard" : "/portal/dashboard")
     }
   }, [session, router])
 
@@ -67,7 +67,7 @@ export default function ChangePasswordPage() {
         })
         
         // Redirect based on role
-        router.push(session?.user.role === "ADMIN" ? "/admin/dashboard" : "/staff/dashboard")
+        router.push("/portal/dashboard")
       } else {
         toast({
           variant: "destructive",

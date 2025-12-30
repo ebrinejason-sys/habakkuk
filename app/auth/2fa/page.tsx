@@ -66,7 +66,7 @@ function TwoFactorContent() {
           if (data.user.mustChangePassword) {
             router.push("/change-password")
           } else if (data.user.role === "ADMIN") {
-            router.push("/admin/dashboard")
+            router.push("/portal/dashboard")
           } else {
             router.push("/staff/dashboard")
           }

@@ -38,16 +38,16 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   const navigation = [
-    { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-    { name: "Users", href: "/admin/users", icon: Users, permission: "MANAGE_USERS" },
-    { name: "Inventory", href: "/admin/inventory", icon: Package, permission: "MANAGE_INVENTORY" },
-    { name: "POS", href: "/admin/pos", icon: ShoppingCart, permission: "MANAGE_POS" },
-    { name: "Customers", href: "/admin/customers", icon: UserCheck, permission: "MANAGE_POS" },
-    { name: "Orders", href: "/admin/orders", icon: ClipboardList, permission: "MANAGE_POS" },
-    { name: "Transactions", href: "/admin/transactions", icon: DollarSign, permission: "VIEW_TRANSACTIONS" },
-    { name: "Inquiries", href: "/admin/inquiries", icon: MessageSquare, adminOnly: true },
-    { name: "Activity Log", href: "/admin/activity-log", icon: Activity, adminOnly: true },
-    { name: "Settings", href: "/admin/settings", icon: Settings, permission: "MANAGE_SETTINGS" },
+    { name: "Dashboard", href: "/portal/dashboard", icon: LayoutDashboard },
+    { name: "Users", href: "/portal/users", icon: Users, permission: "MANAGE_USERS" },
+    { name: "Inventory", href: "/portal/inventory", icon: Package, permission: "MANAGE_INVENTORY" },
+    { name: "POS", href: "/portal/pos", icon: ShoppingCart, permission: "MANAGE_POS" },
+    { name: "Customers", href: "/portal/customers", icon: UserCheck, permission: "MANAGE_POS" },
+    { name: "Orders", href: "/portal/orders", icon: ClipboardList, permission: "MANAGE_POS" },
+    { name: "Transactions", href: "/portal/transactions", icon: DollarSign, permission: "VIEW_TRANSACTIONS" },
+    { name: "Inquiries", href: "/portal/inquiries", icon: MessageSquare, adminOnly: true },
+    { name: "Activity Log", href: "/portal/activity-log", icon: Activity, adminOnly: true },
+    { name: "Settings", href: "/portal/settings", icon: Settings, permission: "MANAGE_SETTINGS" },
   ]
 
   const hasPermission = (permission?: string, adminOnly?: boolean) => {
@@ -80,7 +80,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-4 border-b bg-white/80 backdrop-blur-sm">
-            <Link href="/admin/dashboard" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+            <Link href="/portal/dashboard" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
               <div className="w-10 h-10 rounded-lg overflow-hidden shadow-lg">
                 <Image
                   src="/logo.png"
@@ -173,7 +173,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           {/* Center - Logo on mobile, Page title on desktop */}
           <div className="flex-1 flex justify-center lg:justify-start lg:ml-0">
             {/* Mobile: Centered Logo */}
-            <Link href="/admin/dashboard" className="flex items-center space-x-2 lg:hidden">
+            <Link href="/portal/dashboard" className="flex items-center space-x-2 lg:hidden">
               <Image
                 src="/logo.png"
                 alt="Habakkuk"
