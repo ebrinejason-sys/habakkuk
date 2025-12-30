@@ -139,8 +139,8 @@ export default function SettingsPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-        <p className="text-gray-500 mt-2">Configure pharmacy information and system settings</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Settings</h1>
+        <p className="text-gray-500 mt-1 sm:mt-2 text-sm sm:text-base">Configure pharmacy information and system settings</p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
@@ -270,6 +270,8 @@ export default function SettingsPage() {
               <Label htmlFor="printerType">Printer Type</Label>
               <select
                 id="printerType"
+                title="Select printer type"
+                aria-label="Printer Type"
                 value={settings.printerType}
                 onChange={(e) => setSettings({ ...settings, printerType: e.target.value })}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"

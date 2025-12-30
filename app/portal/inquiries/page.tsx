@@ -139,8 +139,8 @@ export default function InquiriesPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">User Inquiries</h1>
-        <p className="text-gray-500 mt-2">Manage user requests, password resets, and feature requests</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">User Inquiries</h1>
+        <p className="text-gray-500 mt-1 sm:mt-2 text-sm sm:text-base">Manage user requests, password resets, and feature requests</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">

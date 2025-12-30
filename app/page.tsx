@@ -439,12 +439,14 @@ export default function LandingPage() {
                   </Button>
                 </Link>
                 <Link href="/customer/login" className="block">
-                  <Button size="lg" variant="outline" className="w-full border-2 border-white text-white hover:bg-white/10 h-12 md:h-14 text-base md:text-lg">
+                  <Button size="lg" className="w-full bg-white/10 border-2 border-white text-white hover:bg-white/20 h-12 md:h-14 text-base md:text-lg font-semibold">
+                    <Users className="mr-2 h-5 w-5" />
                     Customer Portal
                   </Button>
                 </Link>
                 <Link href="/login" className="block">
-                  <Button size="lg" variant="outline" className="w-full border-2 border-white text-white hover:bg-white/10 h-12 md:h-14 text-base md:text-lg">
+                  <Button size="lg" className="w-full bg-white/10 border-2 border-white text-white hover:bg-white/20 h-12 md:h-14 text-base md:text-lg font-semibold">
+                    <Lock className="mr-2 h-5 w-5" />
                     Staff Login
                   </Button>
                 </Link>

@@ -230,8 +230,8 @@ export default function TransactionsPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Transactions</h1>
-        <p className="text-gray-500 mt-2">View and track all sales transactions</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Transactions</h1>
+        <p className="text-gray-500 mt-1 sm:mt-2 text-sm sm:text-base">View and track all sales transactions</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">

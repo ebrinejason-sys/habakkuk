@@ -293,95 +293,97 @@ export default function OrdersPage() {
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
+    <div className="px-0">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Orders Management</h1>
-          <p className="text-gray-500 mt-2">Manage customer orders and supplier requisitions</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Orders Management</h1>
+          <p className="text-gray-500 mt-1 sm:mt-2 text-sm sm:text-base">Manage customer orders and supplier requisitions</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowSupplierOrderDialog(true)}>
-            <Truck className="h-4 w-4 mr-2" />
-            Supplier Requisition
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button variant="outline" onClick={() => setShowSupplierOrderDialog(true)} className="flex-1 sm:flex-none text-xs sm:text-sm px-2 sm:px-4">
+            <Truck className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Supplier Requisition</span>
+            <span className="sm:hidden">Requisition</span>
           </Button>
-          <Button onClick={() => setShowCustomerOrderDialog(true)}>
-            <ShoppingBag className="h-4 w-4 mr-2" />
-            Customer Order
+          <Button onClick={() => setShowCustomerOrderDialog(true)} className="flex-1 sm:flex-none text-xs sm:text-sm px-2 sm:px-4">
+            <ShoppingBag className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Customer Order</span>
+            <span className="sm:hidden">Order</span>
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4 mb-6">
         <Card className="border-l-4 border-l-yellow-500">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Pending</CardTitle>
             <Clock className="h-4 w-4 text-yellow-600" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.pending}</div>
+          <CardContent className="p-3 sm:p-6 pt-0">
+            <div className="text-xl sm:text-2xl font-bold">{stats.pending}</div>
           </CardContent>
         </Card>
         <Card className="border-l-4 border-l-orange-500">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Unclaimed</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Unclaimed</CardTitle>
             <HandMetal className="h-4 w-4 text-orange-600" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.unclaimedOrders}</div>
+          <CardContent className="p-3 sm:p-6 pt-0">
+            <div className="text-xl sm:text-2xl font-bold">{stats.unclaimedOrders}</div>
           </CardContent>
         </Card>
         <Card className="border-l-4 border-l-green-500">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Completed</CardTitle>
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.completed}</div>
+          <CardContent className="p-3 sm:p-6 pt-0">
+            <div className="text-xl sm:text-2xl font-bold">{stats.completed}</div>
           </CardContent>
         </Card>
         <Card className="border-l-4 border-l-red-500">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Cancelled</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Cancelled</CardTitle>
             <XCircle className="h-4 w-4 text-red-600" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.cancelled}</div>
+          <CardContent className="p-3 sm:p-6 pt-0">
+            <div className="text-xl sm:text-2xl font-bold">{stats.cancelled}</div>
           </CardContent>
         </Card>
         <Card className="border-l-4 border-l-cyan-500">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Online Orders</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Online</CardTitle>
             <Globe className="h-4 w-4 text-cyan-600" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.onlineOrders}</div>
+          <CardContent className="p-3 sm:p-6 pt-0">
+            <div className="text-xl sm:text-2xl font-bold">{stats.onlineOrders}</div>
           </CardContent>
         </Card>
         <Card className="border-l-4 border-l-blue-500">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Customer Orders</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Customer</CardTitle>
             <ShoppingBag className="h-4 w-4 text-blue-600" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.customerOrders}</div>
+          <CardContent className="p-3 sm:p-6 pt-0">
+            <div className="text-xl sm:text-2xl font-bold">{stats.customerOrders}</div>
           </CardContent>
         </Card>
         <Card className="border-l-4 border-l-purple-500">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Supplier Orders</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Supplier</CardTitle>
             <Truck className="h-4 w-4 text-purple-600" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.supplierOrders}</div>
+          <CardContent className="p-3 sm:p-6 pt-0">
+            <div className="text-xl sm:text-2xl font-bold">{stats.supplierOrders}</div>
           </CardContent>
         </Card>
         <Card className="border-l-4 border-l-emerald-500">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Revenue</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Revenue</CardTitle>
             <DollarSign className="h-4 w-4 text-emerald-600" />
           </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold">{formatCurrency(stats.totalRevenue)}</div>
+          <CardContent className="p-3 sm:p-6 pt-0">
+            <div className="text-sm sm:text-lg font-bold truncate">{formatCurrency(stats.totalRevenue)}</div>
           </CardContent>
         </Card>
       </div>

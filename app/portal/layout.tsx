@@ -176,12 +176,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             <Link href="/portal/dashboard" className="flex items-center space-x-2 lg:hidden">
               <Image
                 src="/logo.png"
-                alt="Habakkuk"
-                width={36}
-                height={36}
+                alt="Habakkuk Pharmacy"
+                width={32}
+                height={32}
                 className="rounded-lg"
               />
-              <span className="font-bold text-lg">Habakkuk</span>
+              <div className="flex flex-col leading-tight">
+                <span className="font-bold text-sm">Habakkuk</span>
+                <span className="text-[10px] text-gray-500 -mt-0.5">Pharmacy</span>
+              </div>
             </Link>
             {/* Desktop: Page Title */}
             <h1 className="text-xl font-semibold text-gray-900 hidden lg:block">
@@ -189,16 +192,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             </h1>
           </div>
 
-          {/* Right - User info (desktop) */}
-          <div className="flex items-center space-x-4">
+          {/* Right - Notification bell and user info */}
+          <div className="flex items-center space-x-2 sm:space-x-4">
             <NotificationBell />
             <div className="hidden md:flex flex-col items-end">
               <span className="text-sm font-medium text-gray-700">{session?.user.name}</span>
               <span className="text-xs text-gray-500">{session?.user.role}</span>
-            </div>
-            {/* Mobile: User avatar placeholder to balance hamburger */}
-            <div className="lg:hidden w-10">
-              {/* Empty spacer for balance */}
             </div>
           </div>
         </header>

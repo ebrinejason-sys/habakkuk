@@ -607,8 +607,8 @@ export default function POSPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Point of Sale</h1>
-        <p className="text-gray-500 mt-2">Process sales and generate receipts</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Point of Sale</h1>
+        <p className="text-gray-500 mt-1 sm:mt-2 text-sm sm:text-base">Process sales and generate receipts</p>
       </div>
 
       {showOrderDialog && (
