@@ -11,7 +11,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
 import { Plus, Mail, Loader2, Edit, Trash2, KeyRound } from "lucide-react"
-import { Permission } from "@prisma/client"
+
+// Define Permission type locally to avoid importing from @prisma/client in client component
+type Permission = 
+  | "MANAGE_USERS"
+  | "MANAGE_INVENTORY"
+  | "MANAGE_POS"
+  | "VIEW_TRANSACTIONS"
+  | "MANAGE_SETTINGS"
 
 interface User {
   id: string

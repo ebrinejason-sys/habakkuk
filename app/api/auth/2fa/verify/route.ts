@@ -12,9 +12,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Normalize email to lowercase for consistent lookup
+    const normalizedEmail = email.trim().toLowerCase()
+
     // Find user
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
       select: {
         id: true,
         email: true,

@@ -57,7 +57,7 @@ function TwoFactorContent() {
         // Now sign in with NextAuth using the verified user's ID as a special token
         const { signIn } = await import("next-auth/react")
         const result = await signIn("credentials", {
-          identifier: data.user.email, // Use identifier (not email) to match NextAuth config
+          identifier: data.user.email.toLowerCase(), // Ensure lowercase to match NextAuth lookup
           password: `2FA_VERIFIED:${data.user.id}`, // Special token for 2FA-verified session
           redirect: false,
         })
