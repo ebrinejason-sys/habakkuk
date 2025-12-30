@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
 import { formatCurrency } from "@/lib/utils"
-import { Plus, Search, Eye, CheckCircle, XCircle, Clock, DollarSign, Truck, ShoppingBag, Printer, CreditCard, Trash2, MessageSquare } from "lucide-react"
+import { Plus, Search, Eye, CheckCircle, XCircle, Clock, DollarSign, Truck, ShoppingBag, Printer, CreditCard, Trash2, MessageSquare, HandMetal, User, Globe } from "lucide-react"
 
 interface Order {
   id: string
@@ -24,6 +24,9 @@ interface Order {
   notes?: string
   deliveryAddress?: string
   createdAt: string
+  isOnlineOrder?: boolean
+  claimedBy?: string
+  claimedAt?: string
   customer?: {
     name: string
     email: string
@@ -44,6 +47,9 @@ interface Order {
   processedByUser?: {
     name: string
   }
+  claimedByUser?: {
+    name: string
+  }
 }
 
 interface OrderStats {
@@ -53,13 +59,15 @@ interface OrderStats {
   totalRevenue: number
   supplierOrders: number
   customerOrders: number
+  onlineOrders: number
+  unclaimedOrders: number
 }
 
 export default function OrdersPage() {
   const { data: session } = useSession()
   const [orders, setOrders] = useState<Order[]>([])
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([])
-  const [stats, setStats] = useState<OrderStats>({ pending: 0, completed: 0, cancelled: 0, totalRevenue: 0, supplierOrders: 0, customerOrders: 0 })
+  const [stats, setStats] = useState<OrderStats>({ pending: 0, completed: 0, cancelled: 0, totalRevenue: 0, supplierOrders: 0, customerOrders: 0, onlineOrders: 0, unclaimedOrders: 0 })
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [typeFilter, setTypeFilter] = useState("")
@@ -180,6 +188,71 @@ export default function OrdersPage() {
     }
   }
 
+  const handleClaimOrder = async (orderId: string, orderNo: string) => {
+    try {
+      const response = await fetch("/api/admin/orders/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        toast({
+          title: "Order Claimed!",
+          description: `You are now handling order ${orderNo}`,
+        })
+        fetchOrders()
+      } else {
+        const data = await response.json()
+        toast({
+          variant: "destructive",
+          title: "Cannot Claim Order",
+          description: data.error || "Failed to claim order",
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An error occurred while claiming the order",
+      })
+    }
+  }
+
+  const handleUnclaimOrder = async (orderId: string, orderNo: string) => {
+    if (!confirm(`Are you sure you want to release order ${orderNo}? It will become available for others to claim.`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/orders/claim?orderId=${orderId}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Order Released",
+          description: `Order ${orderNo} is now available for claiming`,
+        })
+        fetchOrders()
+      } else {
+        const data = await response.json()
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: data.error || "Failed to release order",
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An error occurred",
+      })
+    }
+  }
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "PENDING":
@@ -238,8 +311,8 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-        <Card>
+      <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6">
+        <Card className="border-l-4 border-l-yellow-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Pending</CardTitle>
             <Clock className="h-4 w-4 text-yellow-600" />
@@ -248,7 +321,16 @@ export default function OrdersPage() {
             <div className="text-2xl font-bold">{stats.pending}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-l-4 border-l-orange-500">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Unclaimed</CardTitle>
+            <HandMetal className="h-4 w-4 text-orange-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.unclaimedOrders}</div>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-green-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Completed</CardTitle>
             <CheckCircle className="h-4 w-4 text-green-600" />
@@ -257,7 +339,7 @@ export default function OrdersPage() {
             <div className="text-2xl font-bold">{stats.completed}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-l-4 border-l-red-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Cancelled</CardTitle>
             <XCircle className="h-4 w-4 text-red-600" />
@@ -266,7 +348,16 @@ export default function OrdersPage() {
             <div className="text-2xl font-bold">{stats.cancelled}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-l-4 border-l-cyan-500">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Online Orders</CardTitle>
+            <Globe className="h-4 w-4 text-cyan-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.onlineOrders}</div>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Customer Orders</CardTitle>
             <ShoppingBag className="h-4 w-4 text-blue-600" />
@@ -275,7 +366,7 @@ export default function OrdersPage() {
             <div className="text-2xl font-bold">{stats.customerOrders}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-l-4 border-l-purple-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Supplier Orders</CardTitle>
             <Truck className="h-4 w-4 text-purple-600" />
@@ -284,13 +375,13 @@ export default function OrdersPage() {
             <div className="text-2xl font-bold">{stats.supplierOrders}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-l-4 border-l-emerald-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-600" />
+            <DollarSign className="h-4 w-4 text-emerald-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
+            <div className="text-lg font-bold">{formatCurrency(stats.totalRevenue)}</div>
           </CardContent>
         </Card>
       </div>
@@ -385,6 +476,7 @@ export default function OrdersPage() {
                 <TableHead>Customer/Supplier</TableHead>
                 <TableHead>Items</TableHead>
                 <TableHead>Amount</TableHead>
+                <TableHead>Claimed By</TableHead>
                 <TableHead>Payment</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
@@ -393,8 +485,17 @@ export default function OrdersPage() {
             </TableHeader>
             <TableBody>
               {filteredOrders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.orderNo}</TableCell>
+                <TableRow key={order.id} className={order.isOnlineOrder && !order.claimedBy && order.status === "PENDING" ? "bg-orange-50" : ""}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      {order.orderNo}
+                      {order.isOnlineOrder && (
+                        <span className="px-1.5 py-0.5 text-[10px] rounded bg-cyan-100 text-cyan-700 font-medium">
+                          ONLINE
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <span className={`px-2 py-1 text-xs rounded-full ${order.orderType === 'CUSTOMER' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
                       {order.orderType === 'CUSTOMER' ? <ShoppingBag className="h-3 w-3 inline mr-1" /> : <Truck className="h-3 w-3 inline mr-1" />}
@@ -414,6 +515,18 @@ export default function OrdersPage() {
                   <TableCell>{order.items.length} items</TableCell>
                   <TableCell className="font-semibold">{formatCurrency(order.totalAmount)}</TableCell>
                   <TableCell>
+                    {order.claimedByUser ? (
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3 text-green-600" />
+                        <span className="text-sm text-green-700 font-medium">{order.claimedByUser.name}</span>
+                      </div>
+                    ) : order.isOnlineOrder && order.status === "PENDING" ? (
+                      <span className="text-xs text-orange-600 font-medium">Unclaimed</span>
+                    ) : (
+                      <span className="text-xs text-gray-400">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <span className={`px-2 py-1 text-xs rounded-full ${getPaymentColor(order.paymentStatus)}`}>
                       {order.paymentStatus}
                     </span>
@@ -427,6 +540,29 @@ export default function OrdersPage() {
                   <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
+                      {/* Claim button for unclaimed online orders */}
+                      {order.isOnlineOrder && !order.claimedBy && order.status === "PENDING" && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handleClaimOrder(order.id, order.orderNo)}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <HandMetal className="h-4 w-4 mr-1" />
+                          Claim
+                        </Button>
+                      )}
+                      {/* Unclaim button for claimed orders (only for claimer or admin) */}
+                      {order.claimedBy && (order.claimedBy === session?.user?.id || session?.user?.role === "ADMIN" || session?.user?.role === "CEO") && order.status !== "COMPLETED" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleUnclaimOrder(order.id, order.orderNo)}
+                          className="text-orange-600 hover:text-orange-700"
+                        >
+                          Release
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"

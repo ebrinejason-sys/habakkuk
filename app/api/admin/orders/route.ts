@@ -36,6 +36,11 @@ export async function GET(request: NextRequest) {
             name: true,
           },
         },
+        claimedByUser: {
+          select: {
+            name: true,
+          },
+        },
       },
       orderBy: {
         createdAt: "desc",
@@ -51,6 +56,8 @@ export async function GET(request: NextRequest) {
         .reduce((sum: number, o: typeof orders[0]) => sum + o.totalAmount, 0),
       supplierOrders: orders.filter((o: any) => o.orderType === "SUPPLIER").length,
       customerOrders: orders.filter((o: any) => o.orderType === "CUSTOMER").length,
+      onlineOrders: orders.filter((o: any) => o.isOnlineOrder === true).length,
+      unclaimedOrders: orders.filter((o: any) => o.isOnlineOrder === true && !o.claimedBy && o.status === "PENDING").length,
     }
 
     return NextResponse.json({ orders, stats })

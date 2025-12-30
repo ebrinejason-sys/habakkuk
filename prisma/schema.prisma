@@ -29,7 +29,9 @@ model User {
   
   transactions      Transaction[]
   orders            Order[]
+  claimedOrders     Order[]   @relation("ClaimedOrders")
   auditLogs         AuditLog[]
+  notifications     Notification[]
   
   @@map("users")
 }
@@ -159,11 +161,15 @@ model Order {
   notes           String?
   deliveryAddress String?
   processedBy     String?
+  claimedBy       String?
+  claimedAt       DateTime?
+  isOnlineOrder   Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   
   customer        Customer? @relation(fields: [customerId], references: [id])
   processedByUser User?    @relation(fields: [processedBy], references: [id])
+  claimedByUser   User?    @relation("ClaimedOrders", fields: [claimedBy], references: [id])
   items           OrderItem[]
   
   @@map("orders")
@@ -245,6 +251,7 @@ enum Permission {
   VIEW_TRANSACTIONS
   MANAGE_TRANSACTIONS
   VIEW_REPORTS
+  CLAIM_ORDERS
 }
 
 enum AdjustmentType {
@@ -284,4 +291,26 @@ enum PaymentStatus {
   UNPAID
   PARTIAL
   PAID
+}
+
+model Notification {
+  id              String   @id @default(cuid())
+  userId          String
+  type            NotificationType
+  title           String
+  message         String
+  relatedId       String?
+  isRead          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
+}
+
+enum NotificationType {
+  NEW_ORDER
+  ORDER_CLAIMED
+  ORDER_STATUS
+  SYSTEM
 }

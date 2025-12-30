@@ -17,9 +17,11 @@ import {
   UserCheck,
   ClipboardList,
   MessageSquare,
-  Activity
+  Activity,
+  Bell
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { NotificationBell } from "@/components/ui/notification-bell"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 
@@ -188,7 +190,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </div>
 
           {/* Right - User info (desktop) */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-4">
+            <NotificationBell />
             <div className="hidden md:flex flex-col items-end">
               <span className="text-sm font-medium text-gray-700">{session?.user.name}</span>
               <span className="text-xs text-gray-500">{session?.user.role}</span>
