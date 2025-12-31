@@ -291,6 +291,32 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    // Clean up notifications when order is completed or cancelled
+    if (status === "COMPLETED" || status === "CANCELLED") {
+      try {
+        // Delete all NEW_ORDER notifications for this order since it's been processed
+        await (prisma as any).notification.deleteMany({
+          where: {
+            relatedId: id,
+            type: "NEW_ORDER",
+          },
+        })
+        
+        // Also mark any ORDER_CLAIMED notifications as read
+        await (prisma as any).notification.updateMany({
+          where: {
+            relatedId: id,
+            type: "ORDER_CLAIMED",
+          },
+          data: {
+            isRead: true,
+          },
+        })
+      } catch (e) {
+        console.log("Notification cleanup skipped:", e)
+      }
+    }
+
     // Create audit log
     await prisma.auditLog.create({
       data: {
@@ -337,6 +363,17 @@ export async function DELETE(request: NextRequest) {
         { error: "Cannot delete completed orders" },
         { status: 400 }
       )
+    }
+
+    // Delete all notifications related to this order
+    try {
+      await (prisma as any).notification.deleteMany({
+        where: {
+          relatedId: id,
+        },
+      })
+    } catch (e) {
+      console.log("Notification cleanup skipped:", e)
     }
 
     // Delete order items first

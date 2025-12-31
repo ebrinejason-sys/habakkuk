@@ -44,6 +44,8 @@ interface Product {
 
 interface CartItem extends Product {
   cartQuantity: number
+  costPrice: number  // Original price from inventory (constant)
+  sellingPrice: number  // Editable selling price (like Tally)
   subtotal: number
 }
 
@@ -149,7 +151,7 @@ export default function POSPage() {
             ? {
                 ...item,
                 cartQuantity: item.cartQuantity + 1,
-                subtotal: (item.cartQuantity + 1) * item.price,
+                subtotal: (item.cartQuantity + 1) * item.sellingPrice,
               }
             : item
         )
@@ -160,6 +162,8 @@ export default function POSPage() {
         {
           ...product,
           cartQuantity: 1,
+          costPrice: product.price,  // Store original price as cost price
+          sellingPrice: product.price,  // Initialize selling price same as cost
           subtotal: product.price,
         },
       ])
@@ -194,7 +198,24 @@ export default function POSPage() {
           ? {
               ...item,
               cartQuantity: quantity,
-              subtotal: quantity * item.price,
+              subtotal: quantity * item.sellingPrice,
+            }
+          : item
+      )
+    )
+  }
+
+  // Update selling price for an item (Tally-like flexible pricing)
+  const updateSellingPrice = (productId: string, newPrice: number) => {
+    if (newPrice < 0) return
+    
+    setCart(
+      cart.map((item) =>
+        item.id === productId
+          ? {
+              ...item,
+              sellingPrice: newPrice,
+              subtotal: item.cartQuantity * newPrice,
             }
           : item
       )
@@ -228,7 +249,8 @@ export default function POSPage() {
           items: cart.map((item) => ({
             productId: item.id,
             quantity: item.cartQuantity,
-            unitPrice: item.price,
+            unitPrice: item.sellingPrice,  // Use editable selling price
+            costPrice: item.costPrice,  // Include cost price for records
           })),
           paymentMethod,
         }),
@@ -532,7 +554,7 @@ export default function POSPage() {
               <tr>
                 <td><strong>${item.name}</strong><br/><span style="font-size: 12px; color: #888;">${item.sku || ""}</span></td>
                 <td class="text-center">${item.cartQuantity} ${item.unitOfMeasure || ""}</td>
-                <td class="text-right">${formatCurrency(item.price, currency)}</td>
+                <td class="text-right">${formatCurrency(item.sellingPrice, currency)}</td>
                 <td class="text-right"><strong>${formatCurrency(item.subtotal, currency)}</strong></td>
               </tr>
             `).join("")}
@@ -712,7 +734,7 @@ export default function POSPage() {
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="font-medium text-sm">{item.name}</div>
-                        <div className="text-xs text-gray-500">{formatCurrency(item.price)}</div>
+                        <div className="text-xs text-gray-400">Cost: {formatCurrency(item.costPrice)}</div>
                       </div>
                       <Button
                         variant="ghost"
@@ -722,18 +744,45 @@ export default function POSPage() {
                         <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>
                     </div>
-                    <div className="flex items-center justify-between mt-2">
-                      <Input
-                        type="number"
-                        min="1"
-                        value={item.cartQuantity}
-                        onChange={(e) =>
-                          updateCartQuantity(item.id, parseInt(e.target.value))
-                        }
-                        className="w-20 h-8"
-                      />
+                    {/* Editable Selling Price (Tally-like) */}
+                    <div className="flex items-center gap-2 mt-2">
+                      <div className="flex-1">
+                        <Label className="text-xs text-gray-500">Selling Price</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.sellingPrice}
+                          onChange={(e) =>
+                            updateSellingPrice(item.id, parseFloat(e.target.value) || 0)
+                          }
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <Label className="text-xs text-gray-500">Qty</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={item.cartQuantity}
+                          onChange={(e) =>
+                            updateCartQuantity(item.id, parseInt(e.target.value))
+                          }
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t">
+                      <span className="text-xs text-gray-500">Subtotal</span>
                       <div className="font-semibold">{formatCurrency(item.subtotal)}</div>
                     </div>
+                    {item.sellingPrice !== item.costPrice && (
+                      <div className={`text-xs mt-1 ${item.sellingPrice > item.costPrice ? 'text-green-600' : 'text-orange-600'}`}>
+                        {item.sellingPrice > item.costPrice 
+                          ? `+${formatCurrency(item.sellingPrice - item.costPrice)} margin` 
+                          : `${formatCurrency(item.sellingPrice - item.costPrice)} discount`}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1097,7 +1146,7 @@ function ReceiptPreviewDialog({
                         {item.sku && <span className="text-xs text-gray-400 block">{item.sku}</span>}
                       </td>
                       <td className="text-center py-2 px-3">{item.cartQuantity}</td>
-                      <td className="text-right py-2 px-3">{formatCurrency(item.price, currency)}</td>
+                      <td className="text-right py-2 px-3">{formatCurrency(item.sellingPrice, currency)}</td>
                       <td className="text-right py-2 px-3 font-semibold">{formatCurrency(item.subtotal, currency)}</td>
                     </tr>
                   ))}

@@ -75,15 +75,13 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // Mark all notifications for this order as read for this user
+      // Delete all NEW_ORDER notifications for this order since it's been claimed
+      // This removes the "New Customer Order" notification for all users
       try {
-        await (tx as any).notification.updateMany({
+        await (tx as any).notification.deleteMany({
           where: {
             relatedId: orderId,
-            userId: session.user.id,
-          },
-          data: {
-            isRead: true,
+            type: "NEW_ORDER",
           },
         })
       } catch (e) {

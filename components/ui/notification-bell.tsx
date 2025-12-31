@@ -36,12 +36,27 @@ export function NotificationBell() {
     }
   }, [])
 
+  // Clean up orphaned notifications (for orders that are completed/cancelled/deleted)
+  const cleanupOrphanedNotifications = useCallback(async () => {
+    try {
+      await fetch("/api/admin/notifications?cleanup=true", {
+        method: "DELETE",
+      })
+      // Refetch after cleanup
+      fetchNotifications()
+    } catch (error) {
+      console.error("Failed to cleanup notifications:", error)
+    }
+  }, [fetchNotifications])
+
   useEffect(() => {
-    fetchNotifications()
+    // Initial cleanup and fetch
+    cleanupOrphanedNotifications()
+    
     // Poll for new notifications every 30 seconds
     const interval = setInterval(fetchNotifications, 30000)
     return () => clearInterval(interval)
-  }, [fetchNotifications])
+  }, [fetchNotifications, cleanupOrphanedNotifications])
 
   const markAsRead = async (notificationIds?: string[]) => {
     try {

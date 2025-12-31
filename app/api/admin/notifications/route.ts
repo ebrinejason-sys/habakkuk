@@ -106,6 +106,7 @@ export async function DELETE(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const notificationId = searchParams.get("id")
+    const cleanupOrphaned = searchParams.get("cleanup") === "true"
 
     if (notificationId) {
       await (prisma as any).notification.delete({
@@ -113,6 +114,46 @@ export async function DELETE(request: NextRequest) {
           id: notificationId,
           userId: session.user.id,
         },
+      })
+    } else if (cleanupOrphaned) {
+      // Clean up notifications for orders that are completed, cancelled, or deleted
+      const orderNotifications = await (prisma as any).notification.findMany({
+        where: {
+          userId: session.user.id,
+          type: { in: ["NEW_ORDER", "ORDER_CLAIMED"] },
+          relatedId: { not: null },
+        },
+        select: { id: true, relatedId: true },
+      })
+
+      const orphanedIds: string[] = []
+
+      for (const notification of orderNotifications) {
+        if (notification.relatedId) {
+          const order = await prisma.order.findUnique({
+            where: { id: notification.relatedId },
+            select: { id: true, status: true },
+          })
+
+          // Delete if order doesn't exist or is completed/cancelled
+          if (!order || order.status === "COMPLETED" || order.status === "CANCELLED") {
+            orphanedIds.push(notification.id)
+          }
+        }
+      }
+
+      if (orphanedIds.length > 0) {
+        await (prisma as any).notification.deleteMany({
+          where: {
+            id: { in: orphanedIds },
+          },
+        })
+      }
+
+      return NextResponse.json({ 
+        success: true, 
+        cleaned: orphanedIds.length,
+        message: `Cleaned up ${orphanedIds.length} orphaned notifications` 
       })
     } else {
       // Delete all read notifications older than 7 days
