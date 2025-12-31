@@ -16,9 +16,13 @@ import { Plus, Mail, Loader2, Edit, Trash2, KeyRound } from "lucide-react"
 type Permission = 
   | "MANAGE_USERS"
   | "MANAGE_INVENTORY"
+  | "VIEW_INVENTORY"
   | "MANAGE_POS"
   | "VIEW_TRANSACTIONS"
+  | "MANAGE_TRANSACTIONS"
   | "MANAGE_SETTINGS"
+  | "VIEW_REPORTS"
+  | "CLAIM_ORDERS"
 
 interface User {
   id: string
