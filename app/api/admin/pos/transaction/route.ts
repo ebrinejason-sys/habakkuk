@@ -34,12 +34,8 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      if (product.quantity < item.quantity) {
-        return NextResponse.json(
-          { error: `Insufficient stock for ${product.name}` },
-          { status: 400 }
-        )
-      }
+      // Allow negative stock (Tally-style) - no stock validation
+      // Stock will be decremented even if it goes negative
 
       const itemTotal = item.unitPrice * item.quantity
       totalAmount += itemTotal
