@@ -61,6 +61,12 @@ interface Settings {
   taxRate: number
 }
 
+interface StaffMember {
+  id: string
+  name: string
+  email: string
+}
+
 export default function POSPage() {
   const { data: session } = useSession()
   const [products, setProducts] = useState<Product[]>([])
@@ -74,6 +80,9 @@ export default function POSPage() {
   const [amountPaid, setAmountPaid] = useState("")
   const [displayCount, setDisplayCount] = useState(20)
   const [showMobileCart, setShowMobileCart] = useState(false)
+  const [showStaffDialog, setShowStaffDialog] = useState(false)
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([])
+  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null)
   const { toast } = useToast()
 
   // Debounce search query for better performance
@@ -91,6 +100,7 @@ export default function POSPage() {
     }
     fetchProducts()
     fetchSettings()
+    fetchStaffMembers()
   }, [])
 
   // Save cart to localStorage whenever it changes
@@ -101,6 +111,27 @@ export default function POSPage() {
       localStorage.removeItem('pos-cart')
     }
   }, [cart])
+
+  // Check if current user is HABAKKUK master account
+  const isHabakkukAccount = session?.user?.name === "HABAKKUK" || session?.user?.email === "habakkuk@habakkukpharmacy.com"
+
+  const fetchStaffMembers = async () => {
+    try {
+      const response = await fetch("/api/admin/users")
+      if (response.ok) {
+        const data = await response.json()
+        // Filter to only show active staff (excluding HABAKKUK itself)
+        const staff = data.filter((u: any) => 
+          u.isActive && 
+          u.email !== "habakkuk@habakkukpharmacy.com" &&
+          u.name !== "HABAKKUK"
+        )
+        setStaffMembers(staff)
+      }
+    } catch (error) {
+      console.error("Failed to fetch staff:", error)
+    }
+  }
 
   const fetchSettings = async () => {
     try {
@@ -230,9 +261,18 @@ export default function POSPage() {
   const taxAmount = total * (taxRate / 100)
   const grandTotal = total + taxAmount
   const change = amountPaid ? parseFloat(amountPaid) - grandTotal : 0
-  const staffName = session?.user?.name || "Staff"
+  
+  // For HABAKKUK account, use selected staff name; otherwise use logged-in user
+  const staffName = isHabakkukAccount && selectedStaff 
+    ? `HABAKKUK [${selectedStaff.name}]` 
+    : session?.user?.name || "Staff"
+  
+  // The actual staff ID for transaction recording
+  const transactionStaffId = isHabakkukAccount && selectedStaff 
+    ? selectedStaff.id 
+    : session?.user?.id
 
-  const processTransaction = async () => {
+  const handleCompleteSale = () => {
     if (cart.length === 0) {
       toast({
         variant: "destructive",
@@ -242,6 +282,16 @@ export default function POSPage() {
       return
     }
 
+    // If logged in as HABAKKUK, show staff selection dialog
+    if (isHabakkukAccount && !selectedStaff) {
+      setShowStaffDialog(true)
+      return
+    }
+
+    processTransaction()
+  }
+
+  const processTransaction = async () => {
     setIsProcessing(true)
 
     try {
@@ -256,6 +306,8 @@ export default function POSPage() {
             costPrice: item.costPrice,  // Include cost price for records
           })),
           paymentMethod,
+          staffId: transactionStaffId,  // Pass the actual staff member ID
+          staffName: staffName,  // Pass formatted staff name for receipt
         }),
       })
 
@@ -628,8 +680,56 @@ export default function POSPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Point of Sale</h1>
-        <p className="text-gray-500 mt-1 sm:mt-2 text-sm sm:text-base">Process sales and generate receipts</p>
+        <p className="text-gray-500 mt-1 sm:mt-2 text-sm sm:text-base">
+          Process sales and generate receipts
+          {isHabakkukAccount && selectedStaff && (
+            <span className="ml-2 text-primary font-medium">
+              • Selling as: {selectedStaff.name}
+            </span>
+          )}
+        </p>
       </div>
+
+      {/* Staff Selection Dialog for HABAKKUK account */}
+      {showStaffDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Who is making this sale?</CardTitle>
+              <p className="text-sm text-gray-500">Select your name to complete the sale</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {staffMembers.map((staff) => (
+                  <button
+                    key={staff.id}
+                    onClick={() => {
+                      setSelectedStaff(staff)
+                      setShowStaffDialog(false)
+                      // Now process the transaction
+                      setTimeout(() => processTransaction(), 100)
+                    }}
+                    className="w-full p-3 text-left border rounded-lg hover:bg-gray-50 hover:border-primary transition-colors"
+                  >
+                    <div className="font-medium">{staff.name}</div>
+                    <div className="text-xs text-gray-500">{staff.email}</div>
+                  </button>
+                ))}
+                {staffMembers.length === 0 && (
+                  <p className="text-center text-gray-500 py-4">No staff members found</p>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setShowStaffDialog(false)}
+              >
+                Cancel
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {showOrderDialog && (
         <SaveOrderDialog
@@ -864,7 +964,7 @@ export default function POSPage() {
                 </Button>
 
                 <Button
-                  onClick={processTransaction}
+                  onClick={handleCompleteSale}
                   className="w-full"
                   disabled={isProcessing || cart.length === 0}
                 >

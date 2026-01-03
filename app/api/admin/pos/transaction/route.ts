@@ -12,11 +12,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { items, paymentMethod } = await request.json()
+    const { items, paymentMethod, staffId, staffName } = await request.json()
 
     if (!items || items.length === 0) {
       return NextResponse.json({ error: "No items in cart" }, { status: 400 })
     }
+
+    // Use provided staffId if given (for HABAKKUK master account), otherwise use session user
+    const transactionUserId = staffId || session.user.id
 
     // Calculate totals
     let totalAmount = 0
@@ -54,16 +57,17 @@ export async function POST(request: NextRequest) {
     const tax = totalAmount * (taxRate / 100)
     const netAmount = totalAmount + tax
 
-    // Create transaction
+    // Create transaction - assigned to the actual staff member
     const transaction = await prisma.transaction.create({
       data: {
         transactionNo: generateTransactionNo(),
-        userId: session.user.id,
+        userId: transactionUserId,
         totalAmount,
         tax,
         netAmount,
         paymentMethod,
         status: "COMPLETED",
+        notes: staffName ? `Processed via HABAKKUK by ${staffName}` : null,
         items: {
           create: transactionItems,
         },
@@ -72,6 +76,11 @@ export async function POST(request: NextRequest) {
         items: {
           include: {
             product: true,
+          },
+        },
+        user: {
+          select: {
+            name: true,
           },
         },
       },

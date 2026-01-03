@@ -32,6 +32,30 @@ async function main() {
 
   console.log('✅ Created admin user with 2FA:', admin.email)
 
+  // Create HABAKKUK master account for pharmacy PC
+  const habakkukPassword = await bcrypt.hash('Habakkuk@2024', 10)
+  
+  const habakkuk = await prisma.user.upsert({
+    where: { email: 'habakkuk@habakkukpharmacy.com' },
+    update: {
+      password: habakkukPassword,
+      mustChangePassword: false,
+    },
+    create: {
+      email: 'habakkuk@habakkukpharmacy.com',
+      username: 'HABAKKUK',
+      password: habakkukPassword,
+      name: 'HABAKKUK',
+      role: 'STAFF',
+      permissions: ['MANAGE_POS', 'VIEW_TRANSACTIONS'],
+      isActive: true,
+      mustChangePassword: false,
+      twoFactorEnabled: false,
+    },
+  })
+
+  console.log('✅ Created HABAKKUK master account:', habakkuk.email)
+
   // Create default settings
   const settings = await prisma.settings.upsert({
     where: { id: 'default' },
