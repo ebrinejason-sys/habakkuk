@@ -120,11 +120,10 @@ export default function POSPage() {
       const response = await fetch("/api/admin/users")
       if (response.ok) {
         const data = await response.json()
-        // Filter to only show active staff (excluding HABAKKUK itself)
+        // Show all active users (excluding only HABAKKUK master account)
         const staff = data.filter((u: any) => 
           u.isActive && 
-          u.email !== "habakkuk@habakkukpharmacy.com" &&
-          u.name !== "HABAKKUK"
+          u.email !== "habakkuk@habakkukpharmacy.com"
         )
         setStaffMembers(staff)
       }
