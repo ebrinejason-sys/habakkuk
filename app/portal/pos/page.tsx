@@ -72,15 +72,34 @@ export default function POSPage() {
   const [showReceiptPreview, setShowReceiptPreview] = useState(false)
   const [amountPaid, setAmountPaid] = useState("")
   const [displayCount, setDisplayCount] = useState(20)
+  const [showMobileCart, setShowMobileCart] = useState(false)
   const { toast } = useToast()
 
   // Debounce search query for better performance
   const debouncedSearchQuery = useDebounce(searchQuery, 300)
 
+  // Load cart from localStorage on mount
   useEffect(() => {
+    const savedCart = localStorage.getItem('pos-cart')
+    if (savedCart) {
+      try {
+        setCart(JSON.parse(savedCart))
+      } catch (e) {
+        console.error('Failed to parse saved cart:', e)
+      }
+    }
     fetchProducts()
     fetchSettings()
   }, [])
+
+  // Save cart to localStorage whenever it changes
+  useEffect(() => {
+    if (cart.length > 0) {
+      localStorage.setItem('pos-cart', JSON.stringify(cart))
+    } else {
+      localStorage.removeItem('pos-cart')
+    }
+  }, [cart])
 
   const fetchSettings = async () => {
     try {
@@ -99,7 +118,8 @@ export default function POSPage() {
       const response = await fetch("/api/admin/inventory")
       const data = await response.json()
       if (Array.isArray(data)) {
-        setProducts(data.filter((p: Product) => p.quantity > 0))
+        // Show all products including zero/negative stock for continuous sales
+        setProducts(data)
       } else {
         setProducts([])
       }
@@ -137,28 +157,20 @@ export default function POSPage() {
     const existingItem = cart.find((item) => item.id === product.id)
     
     if (existingItem) {
-      if (existingItem.cartQuantity >= product.quantity) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Insufficient stock",
-        })
-        return
+      // Allow selling beyond stock (negative stock allowed)
+      // Move updated item to top of cart
+      const updatedItem = {
+        ...existingItem,
+        cartQuantity: existingItem.cartQuantity + 1,
+        subtotal: (existingItem.cartQuantity + 1) * existingItem.sellingPrice,
       }
-      setCart(
-        cart.map((item) =>
-          item.id === product.id
-            ? {
-                ...item,
-                cartQuantity: item.cartQuantity + 1,
-                subtotal: (item.cartQuantity + 1) * item.sellingPrice,
-              }
-            : item
-        )
-      )
-    } else {
       setCart([
-        ...cart,
+        updatedItem,
+        ...cart.filter((item) => item.id !== product.id)
+      ])
+    } else {
+      // Add new item at the top of cart
+      setCart([
         {
           ...product,
           cartQuantity: 1,
@@ -166,6 +178,7 @@ export default function POSPage() {
           sellingPrice: product.price,  // Initialize selling price same as cost
           subtotal: product.price,
         },
+        ...cart,
       ])
     }
   }
@@ -175,18 +188,7 @@ export default function POSPage() {
   }
 
   const updateCartQuantity = (productId: string, quantity: number) => {
-    const product = products.find((p) => p.id === productId)
-    if (!product) return
-
-    if (quantity > product.quantity) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Insufficient stock",
-      })
-      return
-    }
-
+    // Allow any quantity (negative stock allowed for continuous sales)
     if (quantity <= 0) {
       removeFromCart(productId)
       return
@@ -267,8 +269,9 @@ export default function POSPage() {
         // Print receipt
         printReceipt(data.transaction)
         
-        // Clear cart and refresh
+        // Clear cart and localStorage
         setCart([])
+        localStorage.removeItem('pos-cart')
         fetchProducts()
       } else {
         toast({
@@ -875,6 +878,113 @@ export default function POSPage() {
           </Card>
         </div>
       </div>
+
+      {/* Floating Cart Button for Mobile */}
+      <button
+        onClick={() => setShowMobileCart(true)}
+        className="lg:hidden fixed bottom-6 right-6 z-40 bg-primary text-white p-4 rounded-full shadow-lg hover:bg-primary/90 transition-all"
+      >
+        <div className="relative">
+          <ShoppingCart className="h-6 w-6" />
+          {cart.length > 0 && (
+            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+              {cart.reduce((sum, item) => sum + item.cartQuantity, 0)}
+            </span>
+          )}
+        </div>
+      </button>
+
+      {/* Mobile Cart Modal */}
+      {showMobileCart && (
+        <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center">
+          <div className="bg-white w-full max-h-[90vh] rounded-t-2xl overflow-hidden animate-in slide-in-from-bottom duration-300">
+            <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold flex items-center">
+                <ShoppingCart className="h-5 w-5 mr-2" />
+                Cart ({cart.length} items)
+              </h2>
+              <button 
+                onClick={() => setShowMobileCart(false)}
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="overflow-y-auto max-h-[50vh] p-4">
+              {cart.length === 0 ? (
+                <p className="text-center text-gray-500 py-8">Cart is empty</p>
+              ) : (
+                <div className="space-y-3">
+                  {cart.map((item) => (
+                    <div key={item.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{item.name}</p>
+                        <p className="text-xs text-gray-500">{formatCurrency(item.sellingPrice)} × {item.cartQuantity}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => updateCartQuantity(item.id, item.cartQuantity - 1)}
+                          className="w-8 h-8 flex items-center justify-center bg-gray-200 rounded-full hover:bg-gray-300"
+                        >
+                          -
+                        </button>
+                        <span className="w-8 text-center font-semibold">{item.cartQuantity}</span>
+                        <button
+                          onClick={() => updateCartQuantity(item.id, item.cartQuantity + 1)}
+                          className="w-8 h-8 flex items-center justify-center bg-gray-200 rounded-full hover:bg-gray-300"
+                        >
+                          +
+                        </button>
+                        <button
+                          onClick={() => removeFromCart(item.id)}
+                          className="w-8 h-8 flex items-center justify-center text-red-500 hover:bg-red-50 rounded-full"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <p className="font-bold text-sm w-20 text-right">{formatCurrency(item.subtotal)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {cart.length > 0 && (
+              <div className="sticky bottom-0 bg-white border-t p-4 space-y-3">
+                <div className="flex justify-between text-lg font-bold">
+                  <span>Total</span>
+                  <span>{formatCurrency(grandTotal)}</span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => { setCart([]); setShowMobileCart(false); }}
+                    className="w-full"
+                  >
+                    Clear Cart
+                  </Button>
+                  <Button 
+                    onClick={() => { setShowMobileCart(false); }}
+                    className="w-full"
+                  >
+                    Continue Adding
+                  </Button>
+                </div>
+                
+                <Button 
+                  onClick={() => { setShowMobileCart(false); processTransaction(); }}
+                  className="w-full bg-green-600 hover:bg-green-700"
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? "Processing..." : `Pay ${formatCurrency(grandTotal)}`}
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
