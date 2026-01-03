@@ -16,19 +16,20 @@ export async function GET(request: NextRequest) {
     const users = await prisma.user.findMany({
       where: {
         isActive: true,
-        // Exclude special accounts
-        NOT: [
-          { email: "habakkuk@habakkukpharmacy.com" },
-          { role: "ADMIN" },
-          { role: "CEO" },
-        ],
-        // Also exclude by name pattern
-        name: {
-          not: {
-            contains: "habakkuk boss",
-            mode: "insensitive",
+        // Exclude special accounts using AND with NOT for each condition
+        AND: [
+          { email: { not: "habakkuk@habakkukpharmacy.com" } },
+          { role: { not: "ADMIN" } },
+          { role: { not: "CEO" } },
+          {
+            NOT: {
+              name: {
+                contains: "habakkuk boss",
+                mode: "insensitive",
+              },
+            },
           },
-        },
+        ],
       },
       select: {
         id: true,

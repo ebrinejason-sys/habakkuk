@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSession } from "next-auth/react"
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -10,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { formatCurrency } from "@/lib/utils"
-import { DollarSign, TrendingUp, Calendar, Filter, Download, Eye, Printer, X } from "lucide-react"
+import { DollarSign, TrendingUp, Calendar, Filter, Download, Eye, Printer, X, RotateCcw } from "lucide-react"
 
 interface TransactionItem {
   id: string
@@ -56,6 +57,7 @@ interface Stats {
 }
 
 export default function TransactionsPage() {
+  const { data: session } = useSession()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([])
   const [stats, setStats] = useState<Stats>({ 
@@ -66,6 +68,10 @@ export default function TransactionsPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [settings, setSettings] = useState<PharmacySettings | null>(null)
+  const [isResetting, setIsResetting] = useState(false)
+  
+  // Check if current user is admin
+  const isAdmin = session?.user?.role === "ADMIN"
   
   // Filter states
   const [cashierFilter, setCashierFilter] = useState("")
@@ -124,6 +130,38 @@ export default function TransactionsPage() {
     setPaymentFilter("")
     setStartDate("")
     setEndDate("")
+  }
+
+  const handleResetTransactions = async () => {
+    if (!confirm("⚠️ WARNING: This will permanently delete ALL sales transactions and cannot be undone. Are you absolutely sure you want to reset all sales to zero?")) {
+      return
+    }
+    
+    // Double confirmation
+    if (!confirm("This is your FINAL confirmation. ALL transaction data will be permanently deleted. Continue?")) {
+      return
+    }
+
+    setIsResetting(true)
+    try {
+      const response = await fetch("/api/admin/transactions", {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        alert(`Successfully reset. ${data.deletedCount} transactions deleted.`)
+        fetchTransactions()
+      } else {
+        const error = await response.json()
+        alert(`Error: ${error.error || "Failed to reset transactions"}`)
+      }
+    } catch (error) {
+      console.error("Reset error:", error)
+      alert("An error occurred while resetting transactions")
+    } finally {
+      setIsResetting(false)
+    }
   }
 
   const fetchTransactions = async () => {
@@ -401,9 +439,22 @@ export default function TransactionsPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Transactions</h1>
-        <p className="text-gray-500 mt-1 sm:mt-2 text-sm sm:text-base">View and track all sales transactions</p>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Transactions</h1>
+          <p className="text-gray-500 mt-1 sm:mt-2 text-sm sm:text-base">View and track all sales transactions</p>
+        </div>
+        {isAdmin && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleResetTransactions}
+            disabled={isResetting}
+          >
+            <RotateCcw className={`h-4 w-4 mr-2 ${isResetting ? 'animate-spin' : ''}`} />
+            {isResetting ? "Resetting..." : "Reset All Transactions"}
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
