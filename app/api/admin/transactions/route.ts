@@ -3,6 +3,45 @@ import { getServerSession } from "next-auth"
 import { prisma } from "@/lib/prisma"
 import { authOptions } from "../../auth/[...nextauth]/route"
 
+// Reset all sales/transactions (Admin only)
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+
+    if (!session || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized - Admin only" }, { status: 401 })
+    }
+
+    // Delete all transaction items first (due to foreign key constraint)
+    await prisma.transactionItem.deleteMany({})
+    
+    // Delete all transactions
+    const deletedTransactions = await prisma.transaction.deleteMany({})
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: session.user.id,
+        action: "RESET_SALES",
+        entity: "TRANSACTION",
+        details: `Reset all sales. Deleted ${deletedTransactions.count} transactions.`,
+      },
+    })
+
+    return NextResponse.json({ 
+      success: true, 
+      message: `Successfully reset sales. Deleted ${deletedTransactions.count} transactions.`,
+      deletedCount: deletedTransactions.count
+    })
+  } catch (error) {
+    console.error("Reset sales error:", error)
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    )
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
