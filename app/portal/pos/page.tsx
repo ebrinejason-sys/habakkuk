@@ -117,18 +117,11 @@ export default function POSPage() {
 
   const fetchStaffMembers = async () => {
     try {
-      const response = await fetch("/api/admin/users")
+      // Use dedicated staff-list endpoint that doesn't require admin role
+      const response = await fetch("/api/admin/staff-list")
       if (response.ok) {
         const data = await response.json()
-        // Show only regular staff (exclude HABAKKUK, Admin, CEO, and habakkuk boss)
-        const staff = data.filter((u: any) => 
-          u.isActive && 
-          u.email !== "habakkuk@habakkukpharmacy.com" &&
-          u.role !== "ADMIN" &&
-          u.role !== "CEO" &&
-          u.name?.toLowerCase() !== "habakkuk boss"
-        )
-        setStaffMembers(staff)
+        setStaffMembers(data)
       }
     } catch (error) {
       console.error("Failed to fetch staff:", error)

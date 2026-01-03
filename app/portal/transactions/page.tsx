@@ -153,13 +153,20 @@ export default function TransactionsPage() {
   }
 
   const printTransaction = (transaction: Transaction) => {
-    const printWindow = window.open("", "", "width=400,height=600")
+    const printWindow = window.open("", "", "width=800,height=1000")
     if (!printWindow) return
 
     const pharmacyName = settings?.pharmacyName || "Habakkuk Pharmacy"
     const location = settings?.location || ""
     const contact = settings?.contact || ""
+    const email = settings?.email || ""
     const footerText = settings?.footerText || "Thank you for your purchase!"
+    const currency = settings?.currency || "UGX"
+    const logoImg = settings?.logo ? `<img src="${settings.logo}" alt="Logo" style="width: 60px; height: 60px; object-fit: contain;" />` : ""
+    const transactionDate = new Date(transaction.createdAt)
+    const subtotal = transaction.totalAmount
+    const taxAmount = transaction.tax || 0
+    const grandTotal = transaction.netAmount
 
     const html = `
       <!DOCTYPE html>
@@ -167,58 +174,223 @@ export default function TransactionsPage() {
       <head>
         <title>Receipt - ${transaction.transactionNo}</title>
         <style>
-          body { font-family: 'Courier New', monospace; padding: 15px; width: 350px; font-size: 12px; }
-          .center { text-align: center; }
-          .bold { font-weight: bold; }
-          .header { text-align: center; margin-bottom: 15px; border-bottom: 1px dashed #000; padding-bottom: 15px; }
-          .logo { max-width: 60px; height: auto; margin-bottom: 5px; }
-          .pharmacy-name { font-size: 16px; font-weight: bold; }
-          .pharmacy-info { font-size: 10px; color: #666; }
-          table { width: 100%; border-collapse: collapse; }
-          td { padding: 3px 0; }
-          .right { text-align: right; }
-          .line { border-bottom: 1px dashed #000; margin: 10px 0; }
-          .footer-text { text-align: center; margin-top: 15px; font-size: 10px; color: #666; }
-          @media print { body { padding: 5px; } }
+          @page { size: A4; margin: 10mm; }
+          @media print { body { margin: 0; } }
+          * { box-sizing: border-box; }
+          body { 
+            font-family: Arial, sans-serif; 
+            padding: 10px;
+            max-width: 210mm;
+            margin: 0 auto;
+            color: #000;
+            font-size: 11px;
+            line-height: 1.3;
+          }
+          .receipt-container {
+            border: 1px solid #000;
+            padding: 15px;
+            background: #fff;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 1px dashed #000;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+          }
+          .pharmacy-name {
+            font-size: 16px;
+            font-weight: 700;
+            color: #000;
+            margin: 5px 0 2px;
+          }
+          .pharmacy-info {
+            font-size: 10px;
+            color: #000;
+            margin: 1px 0;
+          }
+          .receipt-title {
+            text-align: center;
+            margin: 8px 0;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 2px;
+          }
+          .receipt-info {
+            display: flex;
+            justify-content: space-between;
+            border: 1px solid #000;
+            padding: 6px 8px;
+            margin-bottom: 8px;
+            font-size: 10px;
+          }
+          .receipt-info-item {
+            text-align: center;
+          }
+          .receipt-info-label {
+            font-size: 8px;
+            text-transform: uppercase;
+          }
+          .receipt-info-value {
+            font-size: 10px;
+            font-weight: 600;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 6px 0;
+          }
+          th {
+            background: #000;
+            color: #fff;
+            padding: 4px 6px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 9px;
+            text-transform: uppercase;
+          }
+          th:last-child { text-align: right; }
+          td {
+            padding: 4px 6px;
+            border-bottom: 1px solid #ccc;
+            font-size: 10px;
+          }
+          tr:last-child td { border-bottom: none; }
+          .text-right { text-align: right; }
+          .text-center { text-align: center; }
+          .totals-section {
+            border-top: 1px dashed #000;
+            padding-top: 8px;
+            margin-top: 6px;
+          }
+          .totals-table {
+            width: 100%;
+            max-width: 180px;
+            margin-left: auto;
+          }
+          .totals-table td {
+            padding: 2px 0;
+            border: none;
+            font-size: 10px;
+          }
+          .totals-table .total-row {
+            font-size: 13px;
+            font-weight: 700;
+            border-top: 2px solid #000;
+            padding-top: 4px;
+          }
+          .payment-info {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            margin: 8px 0;
+            font-size: 10px;
+          }
+          .payment-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 2px 0;
+          }
+          .footer {
+            text-align: center;
+            border-top: 1px dashed #000;
+            padding-top: 8px;
+            margin-top: 8px;
+          }
+          .served-by {
+            font-size: 10px;
+            font-weight: 600;
+            margin-bottom: 4px;
+          }
+          .thank-you {
+            font-size: 10px;
+            margin: 4px 0;
+          }
+          .footer-note {
+            font-size: 9px;
+            margin-top: 4px;
+          }
+          .item-name { font-weight: 600; }
+          .item-sku { font-size: 8px; color: #666; }
         </style>
       </head>
       <body onload="window.print(); window.close();">
-        <div class="header">
-          <img src="/logo.png" alt="Logo" class="logo" onerror="this.style.display='none'" />
-          <div class="pharmacy-name">${pharmacyName}</div>
-          <div class="pharmacy-info">
-            ${location ? `<div>${location}</div>` : ""}
-            ${contact ? `<div>Tel: ${contact}</div>` : ""}
+        <div class="receipt-container">
+          <div class="header">
+            ${logoImg}
+            <h1 class="pharmacy-name">${pharmacyName}</h1>
+            ${location ? `<p class="pharmacy-info">${location}</p>` : ""}
+            ${contact ? `<p class="pharmacy-info">Tel: ${contact}${email ? ` | ${email}` : ""}</p>` : ""}
+          </div>
+
+          <div class="receipt-title">SALES RECEIPT</div>
+
+          <div class="receipt-info">
+            <div class="receipt-info-item">
+              <div class="receipt-info-label">Receipt No</div>
+              <div class="receipt-info-value">${transaction.transactionNo}</div>
+            </div>
+            <div class="receipt-info-item">
+              <div class="receipt-info-label">Date</div>
+              <div class="receipt-info-value">${transactionDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+            </div>
+            <div class="receipt-info-item">
+              <div class="receipt-info-label">Time</div>
+              <div class="receipt-info-value">${transactionDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th class="text-center">Qty</th>
+                <th class="text-right">Price</th>
+                <th class="text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${transaction.items.map(item => `
+                <tr>
+                  <td><span class="item-name">${item.product.name}</span>${item.product.sku ? `<br/><span class="item-sku">${item.product.sku}</span>` : ""}</td>
+                  <td class="text-center">${item.quantity}</td>
+                  <td class="text-right">${formatCurrency(item.unitPrice)}</td>
+                  <td class="text-right"><strong>${formatCurrency(item.totalPrice)}</strong></td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+
+          <div class="totals-section">
+            <table class="totals-table">
+              <tr>
+                <td>Subtotal</td>
+                <td class="text-right">${formatCurrency(subtotal)}</td>
+              </tr>
+              ${taxAmount > 0 ? `
+              <tr>
+                <td>Tax</td>
+                <td class="text-right">${formatCurrency(taxAmount)}</td>
+              </tr>
+              ` : ""}
+              <tr class="total-row">
+                <td>TOTAL</td>
+                <td class="text-right">${formatCurrency(grandTotal)}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div class="payment-info">
+            <div class="payment-row">
+              <span>Payment Method:</span>
+              <strong>${transaction.paymentMethod === "MOBILE_MONEY" ? "Mobile Money" : transaction.paymentMethod}</strong>
+            </div>
+          </div>
+
+          <div class="footer">
+            <p class="served-by">Served by: ${transaction.user.name}</p>
+            <p class="thank-you">${footerText}</p>
+            <p class="footer-note">Keep this receipt for your records</p>
           </div>
         </div>
-        <div class="center">
-          <p class="bold">RECEIPT</p>
-          <p>${transaction.transactionNo}</p>
-          <p>${new Date(transaction.createdAt).toLocaleString()}</p>
-          <p>Cashier: ${transaction.user.name}</p>
-        </div>
-        <div class="line"></div>
-        <table>
-          ${transaction.items.map(item => `
-            <tr>
-              <td>${item.product.name}</td>
-              <td class="center">x${item.quantity}</td>
-              <td class="right">${formatCurrency(item.totalPrice)}</td>
-            </tr>
-          `).join("")}
-        </table>
-        <div class="line"></div>
-        <table>
-          <tr class="bold">
-            <td>TOTAL</td>
-            <td class="right">${formatCurrency(transaction.netAmount)}</td>
-          </tr>
-          <tr>
-            <td>Payment</td>
-            <td class="right">${transaction.paymentMethod}</td>
-          </tr>
-        </table>
-        <div class="footer-text">${footerText}</div>
       </body>
       </html>
     `
