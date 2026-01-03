@@ -269,9 +269,8 @@ export default function POSPage() {
         // Print receipt
         printReceipt(data.transaction)
         
-        // Clear cart and localStorage
+        // Clear cart and refresh
         setCart([])
-        localStorage.removeItem('pos-cart')
         fetchProducts()
       } else {
         toast({
@@ -785,7 +784,7 @@ export default function POSPage() {
                 ))}
               </div>
 
-              <div className="border-t mt-4 pt-4 space-y-3">
+              <div className="border-t mt-4 pt-4 space-y-3" data-checkout-section>
                 <div className="flex justify-between text-sm">
                   <span>Subtotal</span>
                   <span>{formatCurrency(total)}</span>
@@ -881,14 +880,15 @@ export default function POSPage() {
 
       {/* Floating Cart Button for Mobile */}
       <button
-        onClick={() => setShowMobileCart(true)}
-        className="lg:hidden fixed bottom-6 right-6 z-40 bg-primary text-white p-4 rounded-full shadow-lg hover:bg-primary/90 transition-all"
+        onClick={() => setShowMobileCart(!showMobileCart)}
+        className="lg:hidden fixed bottom-6 right-6 z-50 bg-gradient-to-r from-purple-600 to-blue-600 text-white p-4 rounded-full shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 hover:scale-110 active:scale-95"
+        aria-label="Shopping Cart"
       >
         <div className="relative">
           <ShoppingCart className="h-6 w-6" />
           {cart.length > 0 && (
-            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
-              {cart.reduce((sum, item) => sum + item.cartQuantity, 0)}
+            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
+              {cart.length}
             </span>
           )}
         </div>
@@ -896,90 +896,102 @@ export default function POSPage() {
 
       {/* Mobile Cart Modal */}
       {showMobileCart && (
-        <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center">
-          <div className="bg-white w-full max-h-[90vh] rounded-t-2xl overflow-hidden animate-in slide-in-from-bottom duration-300">
-            <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold flex items-center">
-                <ShoppingCart className="h-5 w-5 mr-2" />
-                Cart ({cart.length} items)
-              </h2>
-              <button 
+        <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end">
+          <div className="bg-white w-full max-h-[85vh] rounded-t-3xl overflow-hidden flex flex-col animate-in slide-in-from-bottom duration-300">
+            {/* Mobile Cart Header */}
+            <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-purple-600 to-blue-600 text-white">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5" />
+                Cart ({cart.length})
+              </h3>
+              <button
                 onClick={() => setShowMobileCart(false)}
-                className="p-2 hover:bg-gray-100 rounded-full"
+                className="p-2 hover:bg-white/20 rounded-full transition-colors"
               >
-                ✕
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
-            
-            <div className="overflow-y-auto max-h-[50vh] p-4">
+
+            {/* Mobile Cart Content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {cart.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">Cart is empty</p>
+                <div className="text-center py-12 text-gray-500">
+                  <ShoppingCart className="h-16 w-16 mx-auto mb-4 opacity-30" />
+                  <p>Your cart is empty</p>
+                </div>
               ) : (
-                <div className="space-y-3">
-                  {cart.map((item) => (
-                    <div key={item.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                cart.map((item) => (
+                  <div key={item.id} className="bg-gray-50 rounded-xl p-3 border">
+                    <div className="flex items-start justify-between mb-2">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{item.name}</p>
-                        <p className="text-xs text-gray-500">{formatCurrency(item.sellingPrice)} × {item.cartQuantity}</p>
+                        <h4 className="font-semibold text-sm truncate">{item.name}</h4>
+                        <p className="text-xs text-gray-500">{item.sku}</p>
                       </div>
+                      <button
+                        onClick={() => removeFromCart(item.id)}
+                        className="ml-2 p-1 text-red-500 hover:bg-red-50 rounded"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => updateCartQuantity(item.id, item.cartQuantity - 1)}
-                          className="w-8 h-8 flex items-center justify-center bg-gray-200 rounded-full hover:bg-gray-300"
+                          className="w-8 h-8 bg-white border rounded-lg flex items-center justify-center hover:bg-gray-100 active:scale-95"
                         >
                           -
                         </button>
-                        <span className="w-8 text-center font-semibold">{item.cartQuantity}</span>
+                        <input
+                          type="number"
+                          value={item.cartQuantity}
+                          onChange={(e) => updateCartQuantity(item.id, parseInt(e.target.value) || 1)}
+                          className="w-14 h-8 text-center border rounded-lg font-semibold"
+                        />
                         <button
                           onClick={() => updateCartQuantity(item.id, item.cartQuantity + 1)}
-                          className="w-8 h-8 flex items-center justify-center bg-gray-200 rounded-full hover:bg-gray-300"
+                          className="w-8 h-8 bg-white border rounded-lg flex items-center justify-center hover:bg-gray-100 active:scale-95"
                         >
                           +
                         </button>
-                        <button
-                          onClick={() => removeFromCart(item.id)}
-                          className="w-8 h-8 flex items-center justify-center text-red-500 hover:bg-red-50 rounded-full"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
                       </div>
-                      <p className="font-bold text-sm w-20 text-right">{formatCurrency(item.subtotal)}</p>
+                      <div className="text-right">
+                        <p className="text-xs text-gray-500">
+                          @ {formatCurrency(item.sellingPrice)}
+                        </p>
+                        <p className="font-bold text-green-600">
+                          {formatCurrency(item.subtotal)}
+                        </p>
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))
               )}
             </div>
-            
+
+            {/* Mobile Cart Footer */}
             {cart.length > 0 && (
-              <div className="sticky bottom-0 bg-white border-t p-4 space-y-3">
-                <div className="flex justify-between text-lg font-bold">
-                  <span>Total</span>
-                  <span>{formatCurrency(grandTotal)}</span>
+              <div className="border-t p-4 bg-white space-y-3">
+                <div className="flex justify-between items-center text-lg font-bold">
+                  <span>Total:</span>
+                  <span className="text-green-600">
+                    {formatCurrency(cart.reduce((sum, item) => sum + item.subtotal, 0))}
+                  </span>
                 </div>
-                
-                <div className="grid grid-cols-2 gap-2">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => { setCart([]); setShowMobileCart(false); }}
-                    className="w-full"
-                  >
-                    Clear Cart
-                  </Button>
-                  <Button 
-                    onClick={() => { setShowMobileCart(false); }}
-                    className="w-full"
-                  >
-                    Continue Adding
-                  </Button>
-                </div>
-                
-                <Button 
-                  onClick={() => { setShowMobileCart(false); processTransaction(); }}
-                  className="w-full bg-green-600 hover:bg-green-700"
-                  disabled={isProcessing}
+                <button
+                  onClick={() => {
+                    setShowMobileCart(false)
+                    // Scroll to checkout section
+                    const checkoutSection = document.querySelector('[data-checkout-section]')
+                    checkoutSection?.scrollIntoView({ behavior: 'smooth' })
+                  }}
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg active:scale-95 transition-all"
                 >
-                  {isProcessing ? "Processing..." : `Pay ${formatCurrency(grandTotal)}`}
-                </Button>
+                  Proceed to Checkout
+                </button>
               </div>
             )}
           </div>
