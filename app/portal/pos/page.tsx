@@ -263,7 +263,7 @@ export default function POSPage() {
   
   // For HABAKKUK account, use selected staff name; otherwise use logged-in user
   const staffName = isHabakkukAccount && selectedStaff 
-    ? `HABAKKUK [${selectedStaff.name}]` 
+    ? `${selectedStaff.name} at Habakkuk` 
     : session?.user?.name || "Staff"
   
   // The actual staff ID for transaction recording
