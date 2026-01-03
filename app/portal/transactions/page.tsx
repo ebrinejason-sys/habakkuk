@@ -45,6 +45,8 @@ interface PharmacySettings {
   contact: string
   email: string
   footerText?: string
+  currency?: string
+  logo?: string
 }
 
 interface Stats {
