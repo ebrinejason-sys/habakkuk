@@ -41,6 +41,8 @@ interface Product {
   quantity: number
   unitOfMeasure: string
   barcode?: string
+  expiryDate?: string
+  batchNumber?: string
 }
 
 interface CartItem extends Product {
@@ -48,6 +50,8 @@ interface CartItem extends Product {
   costPrice: number  // Original price from inventory (constant)
   sellingPrice: number  // Editable selling price (like Tally)
   subtotal: number
+  expiryDate?: string  // Expiry date for receipt
+  batchNumber?: string  // Batch number for records
 }
 
 interface Settings {
@@ -597,7 +601,11 @@ export default function POSPage() {
             <tbody>
             ${cart.map((item, index) => `
               <tr>
-                <td><span class="item-name">${item.name}</span>${item.sku ? `<br/><span class="item-sku">${item.sku}</span>` : ""}</td>
+                <td>
+                  <span class="item-name">${item.name}</span>
+                  ${item.sku ? `<br/><span class="item-sku">${item.sku}</span>` : ""}
+                  ${item.expiryDate ? `<br/><span class="item-sku">Exp: ${new Date(item.expiryDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</span>` : ""}
+                </td>
                 <td class="text-center">${item.cartQuantity}</td>
                 <td class="text-right">${formatCurrency(item.sellingPrice, currency)}</td>
                 <td class="text-right"><strong>${formatCurrency(item.subtotal, currency)}</strong></td>
@@ -1502,6 +1510,7 @@ function ReceiptPreviewDialog({
                       <td className="py-1 px-2">
                         <span className="font-medium text-[10px]">{item.name}</span>
                         {item.sku && <span className="text-[8px] text-gray-600 block">{item.sku}</span>}
+                        {item.expiryDate && <span className="text-[8px] text-gray-600 block">Exp: {new Date(item.expiryDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</span>}
                       </td>
                       <td className="text-center py-1 px-1">{item.cartQuantity}</td>
                       <td className="text-right py-1 px-1">{formatCurrency(item.sellingPrice, currency)}</td>

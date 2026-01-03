@@ -62,7 +62,11 @@ export async function GET(request: NextRequest) {
           include: {
             product: {
               select: {
+                name: true,
+                sku: true,
                 costPrice: true,
+                expiryDate: true,
+                batchNumber: true,
               },
             },
           },

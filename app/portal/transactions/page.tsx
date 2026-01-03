@@ -23,6 +23,8 @@ interface TransactionItem {
     name: string
     sku: string
     costPrice: number
+    expiryDate?: string
+    batchNumber?: string
   }
 }
 
@@ -391,7 +393,11 @@ export default function TransactionsPage() {
             <tbody>
               ${transaction.items.map(item => `
                 <tr>
-                  <td><span class="item-name">${item.product.name}</span>${item.product.sku ? `<br/><span class="item-sku">${item.product.sku}</span>` : ""}</td>
+                  <td>
+                    <span class="item-name">${item.product.name}</span>
+                    ${item.product.sku ? `<br/><span class="item-sku">${item.product.sku}</span>` : ""}
+                    ${item.product.expiryDate ? `<br/><span class="item-sku">Exp: ${new Date(item.product.expiryDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</span>` : ""}
+                  </td>
                   <td class="text-center">${item.quantity}</td>
                   <td class="text-right">${formatCurrency(item.unitPrice)}</td>
                   <td class="text-right"><strong>${formatCurrency(item.totalPrice)}</strong></td>
