@@ -78,6 +78,7 @@ model Product {
   stockAdjustments  StockAdjustment[]
   orderItems        OrderItem[]
   transactionItems  TransactionItem[]
+  purchaseOrderItems PurchaseOrderItem[]
   
   @@map("products")
 }
@@ -149,6 +150,67 @@ model Customer {
   transactions    Transaction[]
   
   @@map("customers")
+}
+
+model Supplier {
+  id              String   @id @default(cuid())
+  name            String
+  email           String   @unique
+  phone           String?
+  address         String?
+  contactPerson   String?
+  notes           String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  purchaseOrders  PurchaseOrder[]
+  
+  @@map("suppliers")
+}
+
+model PurchaseOrder {
+  id              String   @id @default(cuid())
+  orderNo         String   @unique
+  supplierId      String
+  totalAmount     Float
+  status          PurchaseOrderStatus @default(DRAFT)
+  notes           String?
+  expectedDate    DateTime?
+  createdBy       String
+  emailSent       Boolean  @default(false)
+  emailSentAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  supplier        Supplier @relation(fields: [supplierId], references: [id])
+  items           PurchaseOrderItem[]
+  
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String   @id @default(cuid())
+  purchaseOrderId String
+  productId       String?
+  productName     String
+  quantity        Int
+  unitPrice       Float
+  totalPrice      Float
+  
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product         Product? @relation(fields: [productId], references: [id])
+  
+  @@map("purchase_order_items")
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  CONFIRMED
+  SHIPPED
+  RECEIVED
+  CANCELLED
 }
 
 model Order {

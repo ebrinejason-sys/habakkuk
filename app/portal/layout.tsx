@@ -18,7 +18,9 @@ import {
   ClipboardList,
   MessageSquare,
   Activity,
-  Bell
+  Bell,
+  Truck,
+  FileText
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { NotificationBell } from "@/components/ui/notification-bell"
@@ -41,6 +43,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: "Dashboard", href: "/portal/dashboard", icon: LayoutDashboard },
     { name: "Users", href: "/portal/users", icon: Users, permission: "MANAGE_USERS" },
     { name: "Inventory", href: "/portal/inventory", icon: Package, permission: "MANAGE_INVENTORY" },
+    { name: "Suppliers", href: "/portal/suppliers", icon: Truck, permission: "MANAGE_INVENTORY" },
+    { name: "Purchase Orders", href: "/portal/purchase-orders", icon: FileText, permission: "MANAGE_INVENTORY" },
     { name: "POS", href: "/portal/pos", icon: ShoppingCart, permission: "MANAGE_POS" },
     { name: "Customers", href: "/portal/customers", icon: UserCheck, permission: "MANAGE_POS" },
     { name: "Orders", href: "/portal/orders", icon: ClipboardList, permission: "MANAGE_POS" },
