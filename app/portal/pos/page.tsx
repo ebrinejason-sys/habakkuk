@@ -37,6 +37,7 @@ interface Product {
   name: string
   sku: string
   price: number
+  costPrice: number
   quantity: number
   unitOfMeasure: string
   barcode?: string
@@ -174,8 +175,8 @@ export default function POSPage() {
         {
           ...product,
           cartQuantity: 1,
-          costPrice: product.price,  // Store original price as cost price
-          sellingPrice: product.price,  // Initialize selling price same as cost
+          costPrice: product.costPrice,  // Store cost price from inventory
+          sellingPrice: product.price,  // Initialize selling price (retail price)
           subtotal: product.price,
         },
         ...cart,
@@ -694,11 +695,17 @@ export default function POSPage() {
                   >
                     <div className="font-medium text-sm">{product.name}</div>
                     <div className="text-xs text-gray-500 mt-1">{product.sku}</div>
-                    <div className="text-primary font-semibold mt-2">
-                      {formatCurrency(product.price)}
+                    <div className="mt-2 space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-500">Cost:</span>
+                        <span className="text-xs text-gray-600 font-medium">{formatCurrency(product.costPrice)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-green-600">Sell:</span>
+                        <span className="text-primary font-bold">{formatCurrency(product.price)}</span>
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-400">Cost: {formatCurrency(product.price)}</div>
-                    <div className="text-xs text-gray-500">Stock: {product.quantity}</div>
+                    <div className="text-xs text-gray-500 mt-1 pt-1 border-t">Stock: {product.quantity}</div>
                   </button>
                 ))}
               </div>
