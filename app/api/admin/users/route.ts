@@ -166,32 +166,71 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Check if target user is admin - prevent deletion
+    // Check if target user exists and is not admin
     const targetUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { role: true },
+      select: { role: true, name: true },
     })
 
-    if (targetUser?.role === "ADMIN") {
+    if (!targetUser) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      )
+    }
+
+    if (targetUser.role === "ADMIN") {
       return NextResponse.json(
         { error: "Admin accounts cannot be deleted" },
         { status: 403 }
       )
     }
 
-    // Delete user
-    await prisma.user.delete({
-      where: { id: userId },
+    // Delete related records in order (due to foreign key constraints)
+    // Use a transaction to ensure all deletions succeed or none
+    await prisma.$transaction(async (tx) => {
+      // Delete user's notifications
+      await tx.notification.deleteMany({
+        where: { userId: userId },
+      })
+
+      // Delete user's audit logs
+      await tx.auditLog.deleteMany({
+        where: { userId: userId },
+      })
+
+      // Update orders - remove user references but keep order data
+      await tx.order.updateMany({
+        where: { processedBy: userId },
+        data: { processedBy: null },
+      })
+
+      await tx.order.updateMany({
+        where: { claimedBy: userId },
+        data: { claimedBy: null, claimedAt: null },
+      })
+
+      // For transactions, we need to keep the data for records
+      // But Prisma requires userId, so we'll delete the user's transactions
+      // or alternatively, you could reassign them to admin
+      await tx.transaction.deleteMany({
+        where: { userId: userId },
+      })
+
+      // Now delete the user
+      await tx.user.delete({
+        where: { id: userId },
+      })
     })
 
-    // Create audit log
+    // Create audit log (with admin's ID since user is deleted)
     await prisma.auditLog.create({
       data: {
         userId: session.user.id,
         action: "DELETE_USER",
         entity: "USER",
         entityId: userId,
-        details: "Deleted user account",
+        details: `Deleted user account: ${targetUser.name}`,
       },
     })
 
@@ -199,7 +238,7 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     console.error("Delete user error:", error)
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Failed to delete user. Please try again." },
       { status: 500 }
     )
   }
