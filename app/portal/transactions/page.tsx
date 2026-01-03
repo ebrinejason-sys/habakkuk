@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useSession } from "next-auth/react"
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -11,8 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { formatCurrency } from "@/lib/utils"
-import { useToast } from "@/hooks/use-toast"
-import { DollarSign, TrendingUp, Calendar, Filter, Download, Eye, Printer, X, Trash2, Loader2 } from "lucide-react"
+import { DollarSign, TrendingUp, Calendar, Filter, Download, Eye, Printer, X } from "lucide-react"
 
 interface TransactionItem {
   id: string
@@ -58,8 +56,6 @@ interface Stats {
 }
 
 export default function TransactionsPage() {
-  const { data: session } = useSession()
-  const { toast } = useToast()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([])
   const [stats, setStats] = useState<Stats>({ 
@@ -67,7 +63,6 @@ export default function TransactionsPage() {
     todayProfit: 0, weekProfit: 0, monthProfit: 0
   })
   const [isLoading, setIsLoading] = useState(true)
-  const [isResetting, setIsResetting] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [settings, setSettings] = useState<PharmacySettings | null>(null)
@@ -157,57 +152,6 @@ export default function TransactionsPage() {
     }
   }
 
-  const handleResetSales = async () => {
-    if (!confirm("⚠️ WARNING: This will permanently delete ALL sales transactions and cannot be undone. Are you absolutely sure you want to reset all sales to zero?")) {
-      return
-    }
-    
-    if (!confirm("This is your final confirmation. Type 'RESET' in the next prompt to confirm.")) {
-      return
-    }
-
-    const confirmation = prompt("Type 'RESET' to confirm:")
-    if (confirmation !== "RESET") {
-      toast({
-        variant: "destructive",
-        title: "Cancelled",
-        description: "Reset sales was cancelled.",
-      })
-      return
-    }
-
-    setIsResetting(true)
-    try {
-      const response = await fetch("/api/admin/transactions", {
-        method: "DELETE",
-      })
-      
-      const data = await response.json()
-      
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: data.message || "All sales have been reset to zero.",
-        })
-        fetchTransactions()
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: data.error || "Failed to reset sales",
-        })
-      }
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "An error occurred while resetting sales",
-      })
-    } finally {
-      setIsResetting(false)
-    }
-  }
-
   const printTransaction = (transaction: Transaction) => {
     const printWindow = window.open("", "", "width=400,height=600")
     if (!printWindow) return
@@ -285,26 +229,9 @@ export default function TransactionsPage() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Transactions</h1>
-          <p className="text-gray-500 mt-1 sm:mt-2 text-sm sm:text-base">View and track all sales transactions</p>
-        </div>
-        {session?.user.role === "ADMIN" && (
-          <Button 
-            variant="destructive" 
-            onClick={handleResetSales}
-            disabled={isResetting}
-            className="w-full sm:w-auto"
-          >
-            {isResetting ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Trash2 className="h-4 w-4 mr-2" />
-            )}
-            Reset All Sales
-          </Button>
-        )}
+      <div className="mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Transactions</h1>
+        <p className="text-gray-500 mt-1 sm:mt-2 text-sm sm:text-base">View and track all sales transactions</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">

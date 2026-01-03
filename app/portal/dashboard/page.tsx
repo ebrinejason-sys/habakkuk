@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Users, Package, DollarSign, ShoppingCart, TrendingUp, AlertTriangle, Calendar, Activity, Clock, User, Receipt } from "lucide-react"
@@ -63,6 +64,7 @@ interface DashboardStats {
 
 export default function AdminDashboard() {
   const { data: session } = useSession()
+  const router = useRouter()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -99,6 +101,7 @@ export default function AdminDashboard() {
         icon: Users,
         color: "text-blue-600",
         bgColor: "bg-blue-100",
+        href: "/portal/users",
       },
       {
         title: "Total Products",
@@ -106,6 +109,7 @@ export default function AdminDashboard() {
         icon: Package,
         color: "text-green-600",
         bgColor: "bg-green-100",
+        href: "/portal/inventory",
       },
       {
         title: "Total Revenue",
@@ -113,6 +117,7 @@ export default function AdminDashboard() {
         icon: DollarSign,
         color: "text-purple-600",
         bgColor: "bg-purple-100",
+        href: "/portal/transactions",
       },
       {
         title: "Today's Sales",
@@ -120,6 +125,7 @@ export default function AdminDashboard() {
         icon: TrendingUp,
         color: "text-orange-600",
         bgColor: "bg-orange-100",
+        href: "/portal/transactions",
       },
       {
         title: "Low Stock Items",
@@ -127,6 +133,7 @@ export default function AdminDashboard() {
         icon: AlertTriangle,
         color: "text-red-600",
         bgColor: "bg-red-100",
+        href: "/portal/inventory?filter=low-stock",
       },
       {
         title: "Pending Orders",
@@ -134,6 +141,7 @@ export default function AdminDashboard() {
         icon: ShoppingCart,
         color: "text-indigo-600",
         bgColor: "bg-indigo-100",
+        href: "/portal/orders",
       },
     ]
 
@@ -148,7 +156,11 @@ export default function AdminDashboard() {
           {adminCards.map((card) => {
             const Icon = card.icon
             return (
-              <Card key={card.title} className="overflow-hidden">
+              <Card 
+                key={card.title} 
+                className="overflow-hidden cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
+                onClick={() => router.push(card.href)}
+              >
                 <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2 p-3 sm:p-6">
                   <CardTitle className="text-xs sm:text-sm font-medium text-gray-600 leading-tight">
                     {card.title}
@@ -348,7 +360,14 @@ export default function AdminDashboard() {
   }
 
   // Staff Dashboard (Non-Admin)
-  const staffCards = []
+  const staffCards: Array<{
+    title: string
+    value: string | number
+    icon: any
+    color: string
+    bgColor: string
+    href?: string
+  }> = []
   
   // Total Products card (for POS users)
   if (stats?.totalProducts !== undefined) {
@@ -358,6 +377,7 @@ export default function AdminDashboard() {
       icon: Package,
       color: "text-green-600",
       bgColor: "bg-green-100",
+      href: "/portal/inventory",
     })
   }
 
@@ -369,6 +389,7 @@ export default function AdminDashboard() {
       icon: TrendingUp,
       color: "text-orange-600",
       bgColor: "bg-orange-100",
+      href: "/portal/transactions",
     })
   }
 
@@ -380,6 +401,7 @@ export default function AdminDashboard() {
       icon: Receipt,
       color: "text-blue-600",
       bgColor: "bg-blue-100",
+      href: "/portal/transactions",
     })
   }
 
@@ -391,6 +413,7 @@ export default function AdminDashboard() {
       icon: DollarSign,
       color: "text-purple-600",
       bgColor: "bg-purple-100",
+      href: "/portal/transactions",
     })
   }
 
@@ -402,6 +425,7 @@ export default function AdminDashboard() {
       icon: ShoppingCart,
       color: "text-indigo-600",
       bgColor: "bg-indigo-100",
+      href: "/portal/orders",
     })
   }
 
@@ -413,7 +437,31 @@ export default function AdminDashboard() {
       icon: AlertTriangle,
       color: "text-red-600",
       bgColor: "bg-red-100",
+      href: "/portal/inventory?filter=low-stock",
     })
+  }
+
+  // Check permissions for navigation
+  const hasPermission = (permission: string) => {
+    if (stats?.isAdmin) return true
+    return stats?.permissions?.includes(permission)
+  }
+
+  const handleCardClick = (href?: string) => {
+    if (!href) return
+    
+    // Check permission before navigating
+    if (href.includes("/portal/inventory") && !hasPermission("VIEW_INVENTORY") && !hasPermission("MANAGE_INVENTORY")) {
+      return
+    }
+    if (href.includes("/portal/transactions") && !hasPermission("VIEW_TRANSACTIONS") && !hasPermission("MANAGE_TRANSACTIONS")) {
+      return
+    }
+    if (href.includes("/portal/orders") && !hasPermission("MANAGE_POS")) {
+      return
+    }
+    
+    router.push(href)
   }
 
   return (
@@ -430,7 +478,11 @@ export default function AdminDashboard() {
           {staffCards.map((card) => {
             const Icon = card.icon
             return (
-              <Card key={card.title} className="overflow-hidden">
+              <Card 
+                key={card.title} 
+                className={`overflow-hidden ${card.href ? 'cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200' : ''}`}
+                onClick={() => handleCardClick(card.href)}
+              >
                 <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2 p-3 sm:p-6">
                   <CardTitle className="text-xs sm:text-sm font-medium text-gray-600 leading-tight">
                     {card.title}

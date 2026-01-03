@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
-import { Plus, Mail, Loader2, Edit, Trash2, KeyRound } from "lucide-react"
+import { Plus, Mail, Loader2, Edit, Trash2, KeyRound, RotateCcw } from "lucide-react"
 
 // Define Permission type locally to avoid importing from @prisma/client in client component
 type Permission = 
@@ -90,6 +90,41 @@ export default function UsersPage() {
           variant: "destructive",
           title: "Error",
           description: data.error || "Failed to delete user",
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An error occurred",
+      })
+    }
+  }
+
+  const handleResetPassword = async (userId: string, userName: string) => {
+    if (!confirm(`Send password reset email to ${userName}?`)) {
+      return
+    }
+
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: userId, resetPassword: true }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: data.message || "Password reset email sent successfully",
+        })
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: data.error || "Failed to reset password",
         })
       }
     } catch (error) {
@@ -181,10 +216,13 @@ export default function UsersPage() {
                     </TableCell>
                     <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => handleEdit(user)}>
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(user)} title="Edit User">
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(user.id)}>
+                      <Button variant="ghost" size="sm" onClick={() => handleResetPassword(user.id, user.name)} title="Reset Password">
+                        <RotateCcw className="h-4 w-4 text-blue-500" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(user.id)} title="Delete User">
                         <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>
                     </TableCell>
