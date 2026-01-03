@@ -31,6 +31,7 @@ interface Transaction {
   transactionNo: string
   totalAmount: number
   netAmount: number
+  tax?: number
   paymentMethod: string
   createdAt: string
   user: {
