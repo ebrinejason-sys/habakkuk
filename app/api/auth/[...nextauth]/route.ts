@@ -85,10 +85,28 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id
-        session.user.role = token.role
-        session.user.permissions = token.permissions
-        session.user.mustChangePassword = token.mustChangePassword
+        session.user.id = token.id as string
+        
+        // Fetch fresh user data from database to get updated permissions
+        const freshUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: {
+            role: true,
+            permissions: true,
+            mustChangePassword: true,
+          }
+        })
+        
+        if (freshUser) {
+          session.user.role = freshUser.role
+          session.user.permissions = freshUser.permissions
+          session.user.mustChangePassword = freshUser.mustChangePassword
+        } else {
+          // Fallback to token values if user not found
+          session.user.role = token.role
+          session.user.permissions = token.permissions
+          session.user.mustChangePassword = token.mustChangePassword
+        }
       }
       return session
     }
