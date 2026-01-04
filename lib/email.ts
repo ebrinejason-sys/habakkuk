@@ -10,8 +10,9 @@ interface SendEmailParams {
 
 export async function sendEmail({ to, subject, html }: SendEmailParams) {
   try {
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@habakkukpharmacy.com'
     const data = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'noreply@habakkukpharmacy.com',
+      from: `Habakkuk Pharmacy <${fromEmail}>`,
       to,
       subject,
       html,

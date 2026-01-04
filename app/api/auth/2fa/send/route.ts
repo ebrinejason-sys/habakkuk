@@ -42,9 +42,10 @@ export async function POST(request: NextRequest) {
 
     // Send email to the 2FA email address
     const recipientEmail = user.twoFactorEmail || user.email
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@habakkukpharmacy.com'
 
     await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL!,
+      from: `Habakkuk Pharmacy <${fromEmail}>`,
       to: recipientEmail,
       subject: "Your 2FA Verification Code - Habakkuk Pharmacy",
       html: `
