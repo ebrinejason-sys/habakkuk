@@ -287,11 +287,20 @@ export default function POSPage() {
       return
     }
 
-    processTransaction()
+    processTransaction(selectedStaff)
   }
 
-  const processTransaction = async () => {
+  const processTransaction = async (staffForReceipt?: StaffMember | null) => {
     setIsProcessing(true)
+
+    // Determine staff name for this specific transaction
+    const receiptStaffName = isHabakkukAccount && staffForReceipt 
+      ? `${staffForReceipt.name} of HABAKKUK` 
+      : session?.user?.name || "Staff"
+    
+    const receiptStaffId = isHabakkukAccount && staffForReceipt 
+      ? staffForReceipt.id 
+      : session?.user?.id
 
     try {
       const response = await fetch("/api/admin/pos/transaction", {
@@ -305,8 +314,8 @@ export default function POSPage() {
             costPrice: item.costPrice,  // Include cost price for records
           })),
           paymentMethod,
-          staffId: transactionStaffId,  // Pass the actual staff member ID
-          staffName: staffName,  // Pass formatted staff name for receipt
+          staffId: receiptStaffId,  // Pass the actual staff member ID
+          staffName: receiptStaffName,  // Pass formatted staff name for receipt
         }),
       })
 
@@ -318,11 +327,20 @@ export default function POSPage() {
           description: "Transaction completed successfully",
         })
         
-        // Print receipt
-        printReceipt(data.transaction)
+        // Print receipt with correct staff name
+        printReceipt(data.transaction, receiptStaffName)
         
-        // Clear cart and refresh
+        // Clear cart and localStorage
         setCart([])
+        localStorage.removeItem('pos-cart')
+        
+        // Reset selected staff for next transaction
+        setSelectedStaff(null)
+        
+        // Reset payment fields
+        setAmountPaid("")
+        
+        // Refresh products
         fetchProducts()
       } else {
         toast({
@@ -342,7 +360,7 @@ export default function POSPage() {
     }
   }
 
-  const printReceipt = (transaction: any) => {
+  const printReceipt = (transaction: any, receiptStaffName: string) => {
     const printWindow = window.open("", "", "width=800,height=1000")
     if (!printWindow) return
 
@@ -651,7 +669,7 @@ export default function POSPage() {
           </div>
 
           <div class="footer">
-            <p class="served-by">Served by: ${staffName}</p>
+            <p class="served-by">Served by: ${receiptStaffName}</p>
             <p class="thank-you">${footerText}</p>
             <p class="footer-note">Keep this receipt for your records</p>
             <div class="barcode-section">
@@ -709,8 +727,8 @@ export default function POSPage() {
                     onClick={() => {
                       setSelectedStaff(staff)
                       setShowStaffDialog(false)
-                      // Now process the transaction
-                      setTimeout(() => processTransaction(), 100)
+                      // Pass the staff directly to avoid state timing issues
+                      processTransaction(staff)
                     }}
                     className="w-full p-3 text-left border rounded-lg hover:bg-gray-50 hover:border-primary transition-colors"
                   >
