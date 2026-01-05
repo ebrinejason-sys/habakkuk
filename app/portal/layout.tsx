@@ -20,7 +20,9 @@ import {
   Activity,
   Bell,
   Truck,
-  FileText
+  FileText,
+  BarChart3,
+  RotateCcw
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { NotificationBell } from "@/components/ui/notification-bell"
@@ -49,6 +51,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: "Customers", href: "/portal/customers", icon: UserCheck, permission: "MANAGE_POS" },
     { name: "Orders", href: "/portal/orders", icon: ClipboardList, permission: "MANAGE_POS" },
     { name: "Transactions", href: "/portal/transactions", icon: DollarSign, permission: "VIEW_TRANSACTIONS" },
+    { name: "Reports", href: "/portal/reports", icon: BarChart3, permission: "VIEW_REPORTS" },
+    { name: "Refunds", href: "/portal/refunds", icon: RotateCcw, permission: "MANAGE_TRANSACTIONS" },
     { name: "Inquiries", href: "/portal/inquiries", icon: MessageSquare, adminOnly: true },
     { name: "Activity Log", href: "/portal/activity-log", icon: Activity, adminOnly: true },
     { name: "Settings", href: "/portal/settings", icon: Settings, permission: "MANAGE_SETTINGS" },

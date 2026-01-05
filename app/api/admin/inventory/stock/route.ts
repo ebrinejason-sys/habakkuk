@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { productId, quantity, type, reason } = await request.json()
+    const { productId, quantity, type, reason, batchNumber, expiryDate } = await request.json()
 
     if (!productId || !quantity || !type) {
       return NextResponse.json(
@@ -41,10 +41,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid adjustment type" }, { status: 400 })
     }
 
-    // Update product quantity
+    // Prepare update data
+    const updateData: any = { quantity: newQty }
+    
+    // Update batch number and expiry date if provided
+    if (batchNumber !== undefined) {
+      updateData.batchNumber = batchNumber || null
+    }
+    if (expiryDate !== undefined) {
+      updateData.expiryDate = expiryDate ? new Date(expiryDate) : null
+    }
+
+    // Update product quantity and optionally batch/expiry
     const updatedProduct = await prisma.product.update({
       where: { id: productId },
-      data: { quantity: newQty },
+      data: updateData,
     })
 
     // Create stock adjustment record

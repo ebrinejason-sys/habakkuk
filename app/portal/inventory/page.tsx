@@ -563,7 +563,7 @@ function CreateProductDialog({ onClose, onSuccess }: CreateProductDialogProps) {
                   required
                 />
               </div>              <div className="space-y-2">
-                <Label htmlFor="unitOfMeasure">Unit of Measure / Package *</Label>
+                <Label htmlFor="unitOfMeasure">Unit of Measure / Package</Label>
                 <select
                   id="unitOfMeasure"
                   value={formData.unitOfMeasure}
@@ -593,13 +593,12 @@ function CreateProductDialog({ onClose, onSuccess }: CreateProductDialogProps) {
                 </select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="batchNumber">Batch Number *</Label>
+                <Label htmlFor="batchNumber">Batch Number</Label>
                 <Input
                   id="batchNumber"
                   value={formData.batchNumber}
                   onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value })}
                   placeholder="e.g., BATCH-2026-001"
-                  required
                 />
               </div>
               <div className="space-y-2">
@@ -611,13 +610,12 @@ function CreateProductDialog({ onClose, onSuccess }: CreateProductDialogProps) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="expiryDate">Expiry Date *</Label>
+                <Label htmlFor="expiryDate">Expiry Date</Label>
                 <Input
                   id="expiryDate"
                   type="date"
                   value={formData.expiryDate}
                   onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-                  required
                 />
               </div>
               <div className="space-y-2 col-span-2">
@@ -977,7 +975,7 @@ function EditProductDialog({ product, onClose, onSuccess }: EditProductDialogPro
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-unitOfMeasure">Unit of Measure / Package *</Label>
+                <Label htmlFor="edit-unitOfMeasure">Unit of Measure / Package</Label>
                 <select
                   id="edit-unitOfMeasure"
                   value={formData.unitOfMeasure}
@@ -1007,13 +1005,12 @@ function EditProductDialog({ product, onClose, onSuccess }: EditProductDialogPro
                 </select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-batchNumber">Batch Number *</Label>
+                <Label htmlFor="edit-batchNumber">Batch Number</Label>
                 <Input
                   id="edit-batchNumber"
                   value={formData.batchNumber}
                   onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value })}
                   placeholder="e.g., BATCH-2026-001"
-                  required
                 />
               </div>
               <div className="space-y-2">
@@ -1025,13 +1022,12 @@ function EditProductDialog({ product, onClose, onSuccess }: EditProductDialogPro
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-expiryDate">Expiry Date *</Label>
+                <Label htmlFor="edit-expiryDate">Expiry Date</Label>
                 <Input
                   id="edit-expiryDate"
                   type="date"
                   value={formData.expiryDate}
                   onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-                  required
                 />
               </div>
               <div className="space-y-2 col-span-2">
@@ -1092,15 +1088,6 @@ function UpdateStockDialog({ products, onClose, onSuccess }: UpdateStockDialogPr
         variant: "destructive",
         title: "Error",
         description: "Please select a product and enter quantity to add",
-      })
-      return
-    }
-
-    if (!batchNumber || !expiryDate) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Batch number and expiry date are required",
       })
       return
     }
@@ -1254,23 +1241,21 @@ function UpdateStockDialog({ products, onClose, onSuccess }: UpdateStockDialogPr
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="batch-number">Batch Number *</Label>
+                  <Label htmlFor="batch-number">Batch Number</Label>
                   <Input
                     id="batch-number"
                     value={batchNumber}
                     onChange={(e) => setBatchNumber(e.target.value)}
                     placeholder="e.g., BATCH-2026-001"
-                    required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="expiry-date">Expiry Date *</Label>
+                  <Label htmlFor="expiry-date">Expiry Date</Label>
                   <Input
                     id="expiry-date"
                     type="date"
                     value={expiryDate}
                     onChange={(e) => setExpiryDate(e.target.value)}
-                    required
                   />
                 </div>
               </div>
@@ -1304,7 +1289,7 @@ function UpdateStockDialog({ products, onClose, onSuccess }: UpdateStockDialogPr
             </Button>
             <Button
               onClick={handleUpdateStock}
-              disabled={isLoading || !selectedProduct || !unitsToAdd || !batchNumber || !expiryDate}
+              disabled={isLoading || !selectedProduct || !unitsToAdd}
             >
               {isLoading ? "Updating..." : "Update Stock"}
             </Button>
