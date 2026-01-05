@@ -281,6 +281,9 @@ export default function InventoryPage() {
                 <TableHead>Product</TableHead>
                 <TableHead>SKU</TableHead>
                 <TableHead>Category</TableHead>
+                <TableHead>Package</TableHead>
+                <TableHead>Batch No.</TableHead>
+                <TableHead>Expiry</TableHead>
                 <TableHead>Price</TableHead>
                 <TableHead>Stock</TableHead>
                 <TableHead>Status</TableHead>
@@ -293,6 +296,15 @@ export default function InventoryPage() {
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>{product.sku}</TableCell>
                   <TableCell>{product.category}</TableCell>
+                  <TableCell>{product.unitOfMeasure}</TableCell>
+                  <TableCell className="text-sm">{product.batchNumber || "-"}</TableCell>
+                  <TableCell className="text-sm">
+                    {product.expiryDate ? (
+                      <span className={new Date(product.expiryDate) < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) ? "text-orange-600 font-semibold" : ""}>
+                        {new Date(product.expiryDate).toLocaleDateString()}
+                      </span>
+                    ) : "-"}
+                  </TableCell>
                   <TableCell>{formatCurrency(product.price)}</TableCell>
                   <TableCell>
                     <span className={product.quantity <= product.reorderLevel ? "text-orange-600 font-semibold" : ""}>
@@ -551,35 +563,43 @@ function CreateProductDialog({ onClose, onSuccess }: CreateProductDialogProps) {
                   required
                 />
               </div>              <div className="space-y-2">
-                <Label htmlFor="unitOfMeasure">Unit of Measure</Label>
+                <Label htmlFor="unitOfMeasure">Unit of Measure / Package *</Label>
                 <select
                   id="unitOfMeasure"
                   value={formData.unitOfMeasure}
                   onChange={(e) => setFormData({ ...formData, unitOfMeasure: e.target.value })}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   title="Unit of Measure"
+                  required
                 >
-                  <option value="Unit">Unit</option>
-                  <option value="Box">Box</option>
+                  <option value="">Select Package Type</option>
+                  <option value="Amps">Amps (Ampoules)</option>
+                  <option value="Bot">Bot (Bottle)</option>
+                  <option value="Caps">Caps (Capsules)</option>
+                  <option value="Dos">Dos (Doses)</option>
+                  <option value="Liquid">Liquid</option>
+                  <option value="Loz">Loz (Lozenges)</option>
+                  <option value="Pcs">Pcs (Pieces)</option>
+                  <option value="Pkt">Pkt (Packet)</option>
+                  <option value="Prs">Prs (Pairs)</option>
+                  <option value="Roll">Roll</option>
                   <option value="Strip">Strip</option>
-                  <option value="Bottle">Bottle</option>
-                  <option value="Pack">Pack</option>
-                  <option value="Tube">Tube</option>
+                  <option value="Supp">Supp (Suppositories)</option>
+                  <option value="Syrp">Syrp (Syrup)</option>
+                  <option value="Tabs">Tabs (Tablets)</option>
+                  <option value="Tubes">Tubes</option>
+                  <option value="Vaccine">Vaccine</option>
                   <option value="Vial">Vial</option>
-                  <option value="Sachet">Sachet</option>
-                  <option value="Carton">Carton</option>
-                  <option value="ml">ml</option>
-                  <option value="g">g</option>
-                  <option value="kg">kg</option>
-                  <option value="L">L</option>
                 </select>
-              </div>              <div className="space-y-2">
-                <Label htmlFor="batchNumber">Batch Number</Label>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="batchNumber">Batch Number *</Label>
                 <Input
                   id="batchNumber"
                   value={formData.batchNumber}
                   onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value })}
-                  placeholder="e.g., BATCH-2025-001"
+                  placeholder="e.g., BATCH-2026-001"
+                  required
                 />
               </div>
               <div className="space-y-2">
@@ -591,12 +611,13 @@ function CreateProductDialog({ onClose, onSuccess }: CreateProductDialogProps) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="expiryDate">Expiry Date</Label>
+                <Label htmlFor="expiryDate">Expiry Date *</Label>
                 <Input
                   id="expiryDate"
                   type="date"
                   value={formData.expiryDate}
                   onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
+                  required
                 />
               </div>
               <div className="space-y-2 col-span-2">
@@ -956,36 +977,43 @@ function EditProductDialog({ product, onClose, onSuccess }: EditProductDialogPro
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-unitOfMeasure">Unit of Measure</Label>
+                <Label htmlFor="edit-unitOfMeasure">Unit of Measure / Package *</Label>
                 <select
                   id="edit-unitOfMeasure"
                   value={formData.unitOfMeasure}
                   onChange={(e) => setFormData({ ...formData, unitOfMeasure: e.target.value })}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   title="Unit of Measure"
+                  required
                 >
-                  <option value="Unit">Unit</option>
-                  <option value="Box">Box</option>
+                  <option value="">Select Package Type</option>
+                  <option value="Amps">Amps (Ampoules)</option>
+                  <option value="Bot">Bot (Bottle)</option>
+                  <option value="Caps">Caps (Capsules)</option>
+                  <option value="Dos">Dos (Doses)</option>
+                  <option value="Liquid">Liquid</option>
+                  <option value="Loz">Loz (Lozenges)</option>
+                  <option value="Pcs">Pcs (Pieces)</option>
+                  <option value="Pkt">Pkt (Packet)</option>
+                  <option value="Prs">Prs (Pairs)</option>
+                  <option value="Roll">Roll</option>
                   <option value="Strip">Strip</option>
-                  <option value="Bottle">Bottle</option>
-                  <option value="Pack">Pack</option>
-                  <option value="Tube">Tube</option>
+                  <option value="Supp">Supp (Suppositories)</option>
+                  <option value="Syrp">Syrp (Syrup)</option>
+                  <option value="Tabs">Tabs (Tablets)</option>
+                  <option value="Tubes">Tubes</option>
+                  <option value="Vaccine">Vaccine</option>
                   <option value="Vial">Vial</option>
-                  <option value="Sachet">Sachet</option>
-                  <option value="Carton">Carton</option>
-                  <option value="ml">ml</option>
-                  <option value="g">g</option>
-                  <option value="kg">kg</option>
-                  <option value="L">L</option>
                 </select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-batchNumber">Batch Number</Label>
+                <Label htmlFor="edit-batchNumber">Batch Number *</Label>
                 <Input
                   id="edit-batchNumber"
                   value={formData.batchNumber}
                   onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value })}
-                  placeholder="e.g., BATCH-2025-001"
+                  placeholder="e.g., BATCH-2026-001"
+                  required
                 />
               </div>
               <div className="space-y-2">
@@ -997,12 +1025,13 @@ function EditProductDialog({ product, onClose, onSuccess }: EditProductDialogPro
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-expiryDate">Expiry Date</Label>
+                <Label htmlFor="edit-expiryDate">Expiry Date *</Label>
                 <Input
                   id="edit-expiryDate"
                   type="date"
                   value={formData.expiryDate}
                   onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
+                  required
                 />
               </div>
               <div className="space-y-2 col-span-2">
@@ -1039,6 +1068,8 @@ function UpdateStockDialog({ products, onClose, onSuccess }: UpdateStockDialogPr
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [unitsToAdd, setUnitsToAdd] = useState("")
+  const [batchNumber, setBatchNumber] = useState("")
+  const [expiryDate, setExpiryDate] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
 
@@ -1048,12 +1079,28 @@ function UpdateStockDialog({ products, onClose, onSuccess }: UpdateStockDialogPr
       p.sku.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  // When product is selected, populate existing batch/expiry
+  const handleSelectProduct = (product: Product) => {
+    setSelectedProduct(product)
+    setBatchNumber(product.batchNumber || "")
+    setExpiryDate(product.expiryDate ? product.expiryDate.split("T")[0] : "")
+  }
+
   const handleUpdateStock = async () => {
     if (!selectedProduct || !unitsToAdd) {
       toast({
         variant: "destructive",
         title: "Error",
         description: "Please select a product and enter quantity to add",
+      })
+      return
+    }
+
+    if (!batchNumber || !expiryDate) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Batch number and expiry date are required",
       })
       return
     }
@@ -1079,6 +1126,8 @@ function UpdateStockDialog({ products, onClose, onSuccess }: UpdateStockDialogPr
           quantity: addQuantity,
           type: "INCREASE",
           reason: "Stock replenishment",
+          batchNumber: batchNumber || null,
+          expiryDate: expiryDate || null,
         }),
       })
 
@@ -1146,7 +1195,7 @@ function UpdateStockDialog({ products, onClose, onSuccess }: UpdateStockDialogPr
                   filteredProducts.map((product) => (
                     <button
                       key={product.id}
-                      onClick={() => setSelectedProduct(product)}
+                      onClick={() => handleSelectProduct(product)}
                       className="w-full p-3 text-left hover:bg-gray-50 border-b last:border-b-0 transition-colors"
                     >
                       <div className="font-medium">{product.name}</div>
@@ -1166,6 +1215,12 @@ function UpdateStockDialog({ products, onClose, onSuccess }: UpdateStockDialogPr
                 <p className="text-sm text-blue-800 mt-2">
                   Current Stock: <strong>{selectedProduct.quantity} {selectedProduct.unitOfMeasure}</strong>
                 </p>
+                {selectedProduct.batchNumber && (
+                  <p className="text-sm text-blue-800">Batch: {selectedProduct.batchNumber}</p>
+                )}
+                {selectedProduct.expiryDate && (
+                  <p className="text-sm text-blue-800">Expiry: {new Date(selectedProduct.expiryDate).toLocaleDateString()}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -1197,6 +1252,29 @@ function UpdateStockDialog({ products, onClose, onSuccess }: UpdateStockDialogPr
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="batch-number">Batch Number *</Label>
+                  <Input
+                    id="batch-number"
+                    value={batchNumber}
+                    onChange={(e) => setBatchNumber(e.target.value)}
+                    placeholder="e.g., BATCH-2026-001"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="expiry-date">Expiry Date *</Label>
+                  <Input
+                    id="expiry-date"
+                    type="date"
+                    value={expiryDate}
+                    onChange={(e) => setExpiryDate(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
               {unitsToAdd && parseInt(unitsToAdd) > 0 && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                   <p className="text-sm text-green-800">
@@ -1211,6 +1289,8 @@ function UpdateStockDialog({ products, onClose, onSuccess }: UpdateStockDialogPr
                 onClick={() => {
                   setSelectedProduct(null)
                   setUnitsToAdd("")
+                  setBatchNumber("")
+                  setExpiryDate("")
                 }}
               >
                 ← Select Different Product
@@ -1224,7 +1304,7 @@ function UpdateStockDialog({ products, onClose, onSuccess }: UpdateStockDialogPr
             </Button>
             <Button
               onClick={handleUpdateStock}
-              disabled={isLoading || !selectedProduct || !unitsToAdd}
+              disabled={isLoading || !selectedProduct || !unitsToAdd || !batchNumber || !expiryDate}
             >
               {isLoading ? "Updating..." : "Update Stock"}
             </Button>
