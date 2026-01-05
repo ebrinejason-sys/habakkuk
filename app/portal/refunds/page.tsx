@@ -326,7 +326,7 @@ export default function RefundsPage() {
                 {refunds.map((refund) => (
                   <TableRow key={refund.id}>
                     <TableCell className="font-medium">{refund.transactionNo}</TableCell>
-                    <TableCell>{new Date(refund.updatedAt || refund.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>{new Date(refund.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell>{refund.customer?.name || "Walk-in"}</TableCell>
                     <TableCell>{refund.user.name}</TableCell>
                     <TableCell className="text-right text-red-600">
