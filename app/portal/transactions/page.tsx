@@ -17,6 +17,7 @@ interface TransactionItem {
   id: string
   quantity: number
   unitPrice: number
+  costPrice?: number  // Cost price at time of sale
   totalPrice: number
   product: {
     id: string
@@ -134,7 +135,9 @@ export default function TransactionsPage() {
 
   const calculateProfit = (transaction: Transaction) => {
     return transaction.items.reduce((total, item) => {
-      const profit = (item.unitPrice - item.product.costPrice) * item.quantity
+      // Use stored costPrice if available, otherwise fall back to current product cost
+      const costAtSale = item.costPrice ?? item.product.costPrice
+      const profit = (item.unitPrice - costAtSale) * Math.abs(item.quantity)
       return total + profit
     }, 0)
   }

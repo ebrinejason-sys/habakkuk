@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
         productId: item.productId,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
+        costPrice: product.costPrice, // Store cost at time of sale for accurate profit calculation
         totalPrice: itemTotal,
       })
     }

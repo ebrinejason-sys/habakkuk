@@ -14,7 +14,7 @@ export async function DELETE(request: NextRequest) {
 
     // Delete all transaction items first (due to foreign key constraint)
     await prisma.transactionItem.deleteMany({})
-    
+
     // Delete all transactions
     const deletedTransactions = await prisma.transaction.deleteMany({})
 
@@ -28,8 +28,8 @@ export async function DELETE(request: NextRequest) {
       },
     })
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message: `Successfully reset sales. Deleted ${deletedTransactions.count} transactions.`,
       deletedCount: deletedTransactions.count
     })
@@ -77,9 +77,13 @@ export async function GET(request: NextRequest) {
     })
 
     // Calculate profit for each period
+    // Uses stored costPrice from transaction item (for new transactions)
+    // Falls back to product.costPrice for old transactions without stored cost
     const calculateProfit = (items: any[]) => {
       return items.reduce((total: number, item: any) => {
-        const profit = (item.unitPrice - item.product.costPrice) * item.quantity
+        // Use stored costPrice if available, otherwise fall back to current product cost
+        const costAtSale = item.costPrice ?? item.product.costPrice
+        const profit = (item.unitPrice - costAtSale) * Math.abs(item.quantity)
         return total + profit
       }, 0)
     }
