@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { Bell, Check, Trash2, X, ShoppingBag, UserCheck, AlertCircle } from "lucide-react"
+import { Bell, Check, Trash2, X, ShoppingBag, UserCheck, AlertCircle, Edit } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { formatDistanceToNow } from "date-fns"
 
@@ -52,7 +52,7 @@ export function NotificationBell() {
   useEffect(() => {
     // Initial cleanup and fetch
     cleanupOrphanedNotifications()
-    
+
     // Poll for new notifications every 30 seconds
     const interval = setInterval(fetchNotifications, 30000)
     return () => clearInterval(interval)
@@ -89,11 +89,13 @@ export function NotificationBell() {
     if (!notification.isRead) {
       await markAsRead([notification.id])
     }
-    
+
     if (notification.type === "NEW_ORDER" || notification.type === "ORDER_CLAIMED") {
       router.push("/portal/orders")
+    } else if (notification.type === "TRANSACTION_EDIT") {
+      router.push("/portal/transactions")
     }
-    
+
     setIsOpen(false)
   }
 
@@ -103,6 +105,8 @@ export function NotificationBell() {
         return <ShoppingBag className="h-5 w-5 text-blue-500" />
       case "ORDER_CLAIMED":
         return <UserCheck className="h-5 w-5 text-green-500" />
+      case "TRANSACTION_EDIT":
+        return <Edit className="h-5 w-5 text-amber-600" />
       default:
         return <AlertCircle className="h-5 w-5 text-gray-500" />
     }
@@ -167,9 +171,8 @@ export function NotificationBell() {
                   {notifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
-                        !notification.isRead ? "bg-blue-50/50" : ""
-                      }`}
+                      className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${!notification.isRead ? "bg-blue-50/50" : ""
+                        }`}
                       onClick={() => handleNotificationClick(notification)}
                     >
                       <div className="flex gap-3">

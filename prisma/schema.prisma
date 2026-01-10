@@ -33,6 +33,7 @@ model User {
   claimedOrders     Order[]   @relation("ClaimedOrders")
   auditLogs         AuditLog[]
   notifications     Notification[]
+  transactionEdits  TransactionEdit[] @relation("TransactionEdits")
   
   @@map("users")
 }
@@ -111,12 +112,14 @@ model Transaction {
   paymentMethod   PaymentMethod
   status          TransactionStatus @default(COMPLETED)
   notes           String?
+  isEdited        Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   
   user            User     @relation(fields: [userId], references: [id])
   customer        Customer? @relation(fields: [customerId], references: [id])
   items           TransactionItem[]
+  edits           TransactionEdit[]
   
   @@map("transactions")
 }
@@ -376,4 +379,20 @@ enum NotificationType {
   ORDER_CLAIMED
   ORDER_STATUS
   SYSTEM
+  TRANSACTION_EDIT
+}
+
+model TransactionEdit {
+  id              String   @id @default(cuid())
+  transactionId   String
+  editedBy        String
+  reason          String   // Required - why the edit was made
+  previousData    String   // JSON snapshot of transaction before edit
+  newData         String   // JSON snapshot of transaction after edit
+  createdAt       DateTime @default(now())
+  
+  transaction     Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  editor          User        @relation("TransactionEdits", fields: [editedBy], references: [id])
+  
+  @@map("transaction_edits")
 }

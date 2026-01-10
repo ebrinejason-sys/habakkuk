@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { formatCurrency } from "@/lib/utils"
-import { DollarSign, TrendingUp, Calendar, Filter, Download, Eye, Printer, X, RotateCcw } from "lucide-react"
+import { DollarSign, TrendingUp, Calendar, Filter, Download, Eye, Printer, X, RotateCcw, Edit, AlertTriangle } from "lucide-react"
 
 interface TransactionItem {
   id: string
@@ -33,8 +33,10 @@ interface Transaction {
   transactionNo: string
   totalAmount: number
   netAmount: number
+  discount?: number
   tax?: number
   paymentMethod: string
+  isEdited?: boolean
   createdAt: string
   user: {
     name: string
@@ -65,7 +67,7 @@ export default function TransactionsPage() {
   const { data: session } = useSession()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([])
-  const [stats, setStats] = useState<Stats>({ 
+  const [stats, setStats] = useState<Stats>({
     today: 0, week: 0, month: 0,
     todayProfit: 0, weekProfit: 0, monthProfit: 0
   })
@@ -74,10 +76,17 @@ export default function TransactionsPage() {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [settings, setSettings] = useState<PharmacySettings | null>(null)
   const [isResetting, setIsResetting] = useState(false)
-  
+
+  // Edit transaction state
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
+  const [editItems, setEditItems] = useState<{ id: string, quantity: number, unitPrice: number, productName: string }[]>([])
+  const [editPaymentMethod, setEditPaymentMethod] = useState("")
+  const [editReason, setEditReason] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
+
   // Check if current user is admin
   const isAdmin = session?.user?.role === "ADMIN"
-  
+
   // Filter states
   const [cashierFilter, setCashierFilter] = useState("")
   const [paymentFilter, setPaymentFilter] = useState("")
@@ -97,7 +106,7 @@ export default function TransactionsPage() {
     let filtered = [...transactions]
 
     if (cashierFilter) {
-      filtered = filtered.filter(t => 
+      filtered = filtered.filter(t =>
         t.user.name.toLowerCase().includes(cashierFilter.toLowerCase())
       )
     }
@@ -107,7 +116,7 @@ export default function TransactionsPage() {
     }
 
     if (startDate) {
-      filtered = filtered.filter(t => 
+      filtered = filtered.filter(t =>
         new Date(t.createdAt) >= new Date(startDate)
       )
     }
@@ -115,7 +124,7 @@ export default function TransactionsPage() {
     if (endDate) {
       const end = new Date(endDate)
       end.setHours(23, 59, 59, 999)
-      filtered = filtered.filter(t => 
+      filtered = filtered.filter(t =>
         new Date(t.createdAt) <= end
       )
     }
@@ -141,7 +150,7 @@ export default function TransactionsPage() {
     if (!confirm("⚠️ WARNING: This will permanently delete ALL sales transactions and cannot be undone. Are you absolutely sure you want to reset all sales to zero?")) {
       return
     }
-    
+
     // Double confirmation
     if (!confirm("This is your FINAL confirmation. ALL transaction data will be permanently deleted. Continue?")) {
       return
@@ -192,6 +201,74 @@ export default function TransactionsPage() {
       }
     } catch (error) {
       console.error("Failed to fetch settings:", error)
+    }
+  }
+
+  // Start editing a transaction
+  const startEditTransaction = (transaction: Transaction) => {
+    setEditingTransaction(transaction)
+    setEditItems(transaction.items.map(item => ({
+      id: item.id,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      productName: item.product.name
+    })))
+    setEditPaymentMethod(transaction.paymentMethod)
+    setEditReason("")
+  }
+
+  // Handle item change during edit
+  const handleEditItemChange = (id: string, field: "quantity" | "unitPrice", value: number) => {
+    setEditItems(prev => prev.map(item =>
+      item.id === id ? { ...item, [field]: value } : item
+    ))
+  }
+
+  // Save edited transaction
+  const saveEditedTransaction = async () => {
+    if (!editingTransaction) return
+
+    if (!editReason || editReason.trim().length < 10) {
+      alert("Please provide a reason for the edit (minimum 10 characters)")
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      const response = await fetch(`/api/admin/transactions/${editingTransaction.id}/edit`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: editItems.map(item => ({
+            id: item.id,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice
+          })),
+          paymentMethod: editPaymentMethod,
+          reason: editReason.trim()
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        alert("Transaction updated successfully! CEO and Admin have been notified.")
+        setEditingTransaction(null)
+        setEditReason("")
+        fetchTransactions()
+
+        // Auto-print the updated receipt
+        if (data.transaction && confirm("Would you like to print the updated receipt?")) {
+          printTransaction(data.transaction)
+        }
+      } else {
+        const error = await response.json()
+        alert(`Error: ${error.error || "Failed to update transaction"}`)
+      }
+    } catch (error) {
+      console.error("Save edit error:", error)
+      alert("An error occurred while saving changes")
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -353,10 +430,36 @@ export default function TransactionsPage() {
           }
           .item-name { font-weight: 600; }
           .item-sku { font-size: 8px; color: #666; }
+          .edited-watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 48px;
+            font-weight: bold;
+            color: rgba(255, 165, 0, 0.15);
+            pointer-events: none;
+            z-index: 0;
+            white-space: nowrap;
+          }
+          .edited-banner {
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+            color: #92400e;
+            padding: 8px;
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 10px;
+          }
+          .receipt-container { position: relative; }
         </style>
       </head>
       <body onload="window.print(); window.close();">
         <div class="receipt-container">
+          ${transaction.isEdited ? `
+            <div class="edited-watermark">EDITED</div>
+            <div class="edited-banner">⚠️ EDITED RECEIPT - Original transaction modified</div>
+          ` : ''}
           <div class="header">
             ${logoImg}
             <h1 class="pharmacy-name">${pharmacyName}</h1>
@@ -597,8 +700,17 @@ export default function TransactionsPage() {
             </TableHeader>
             <TableBody>
               {filteredTransactions.map((transaction) => (
-                <TableRow key={transaction.id}>
-                  <TableCell className="font-medium">{transaction.transactionNo}</TableCell>
+                <TableRow key={transaction.id} className={transaction.isEdited ? "bg-amber-50" : ""}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      {transaction.transactionNo}
+                      {transaction.isEdited && (
+                        <span className="px-1.5 py-0.5 text-xs rounded bg-amber-100 text-amber-700 font-medium">
+                          EDITED
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>{new Date(transaction.createdAt).toLocaleString()}</TableCell>
                   <TableCell>{transaction.user.name}</TableCell>
                   <TableCell>
@@ -621,6 +733,15 @@ export default function TransactionsPage() {
                         title="View Details"
                       >
                         <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => startEditTransaction(transaction)}
+                        title="Edit Transaction"
+                        className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                      >
+                        <Edit className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -723,6 +844,143 @@ export default function TransactionsPage() {
                 </Button>
                 <Button onClick={() => setSelectedTransaction(null)}>
                   Close
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Edit Transaction Modal */}
+      {editingTransaction && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <CardHeader className="bg-amber-50 border-b">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-amber-600" />
+                  <CardTitle className="text-amber-900">Edit Transaction</CardTitle>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setEditingTransaction(null)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-sm text-amber-700 mt-1">
+                Editing {editingTransaction.transactionNo} - CEO and Admin will be notified
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4">
+              {/* Warning */}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-sm text-amber-800">
+                  <strong>⚠️ Important:</strong> All edits are logged and CEO/Admin will receive priority notifications.
+                  Stock levels will be adjusted based on quantity changes.
+                </p>
+              </div>
+
+              {/* Edit Items */}
+              <div>
+                <Label className="text-gray-600 mb-2 block">Items</Label>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead className="w-24">Qty</TableHead>
+                      <TableHead className="w-32">Unit Price</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {editItems.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>{item.productName}</TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) => handleEditItemChange(item.id, "quantity", parseInt(e.target.value) || 1)}
+                            className="w-20"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="100"
+                            value={item.unitPrice}
+                            onChange={(e) => handleEditItemChange(item.id, "unitPrice", parseFloat(e.target.value) || 0)}
+                            className="w-28"
+                          />
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {formatCurrency(item.quantity * item.unitPrice)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Payment Method */}
+              <div className="space-y-2">
+                <Label htmlFor="editPaymentMethod">Payment Method</Label>
+                <select
+                  id="editPaymentMethod"
+                  value={editPaymentMethod}
+                  onChange={(e) => setEditPaymentMethod(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="CASH">Cash</option>
+                  <option value="CARD">Card</option>
+                  <option value="MOBILE_MONEY">Mobile Money</option>
+                  <option value="BANK_TRANSFER">Bank Transfer</option>
+                </select>
+              </div>
+
+              {/* New Total */}
+              <div className="bg-gray-100 p-4 rounded-lg">
+                <div className="flex justify-between items-center text-lg">
+                  <span>New Total:</span>
+                  <span className="font-bold">
+                    {formatCurrency(editItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0))}
+                  </span>
+                </div>
+              </div>
+
+              {/* Reason - REQUIRED */}
+              <div className="space-y-2">
+                <Label htmlFor="editReason" className="text-red-600 font-semibold">
+                  Reason for Edit * (Required - minimum 10 characters)
+                </Label>
+                <textarea
+                  id="editReason"
+                  value={editReason}
+                  onChange={(e) => setEditReason(e.target.value)}
+                  placeholder="Please explain why you are editing this transaction..."
+                  className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  required
+                />
+                <p className="text-xs text-gray-500">
+                  {editReason.length}/10 characters minimum
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => setEditingTransaction(null)}
+                  disabled={isSaving}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={saveEditedTransaction}
+                  disabled={isSaving || editReason.trim().length < 10}
+                  className="bg-amber-600 hover:bg-amber-700"
+                >
+                  {isSaving ? "Saving..." : "Save Changes & Notify CEO/Admin"}
                 </Button>
               </div>
             </CardContent>
