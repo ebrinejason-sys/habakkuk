@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
 import { formatCurrency, generateTransactionNo } from "@/lib/utils"
-import { Search, ShoppingCart, Trash2, Printer, Clock, Eye, Calculator } from "lucide-react"
+import { Search, ShoppingCart, Trash2, Printer, Clock, Eye, Calculator, Package } from "lucide-react"
 
 // Debounce hook for search
 function useDebounce<T>(value: T, delay: number): T {
@@ -32,6 +32,22 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue
 }
 
+interface ProductPackage {
+  id: string
+  name: string  // "Strip", "Box", "Dozen"
+  unitsPerPackage: number
+  price: number
+  isDefault: boolean
+}
+
+interface ProductBatch {
+  id: string
+  batchNumber: string
+  quantity: number
+  expiryDate: string
+  costPrice: number
+}
+
 interface Product {
   id: string
   name: string
@@ -43,15 +59,23 @@ interface Product {
   barcode?: string
   expiryDate?: string
   batchNumber?: string
+  packages?: ProductPackage[]
+  batches?: ProductBatch[]
 }
 
 interface CartItem extends Product {
-  cartQuantity: number
+  cartQuantity: number  // Quantity in base units OR package units
   costPrice: number  // Original price from inventory (constant)
   sellingPrice: number  // Editable selling price (like Tally)
   subtotal: number
   expiryDate?: string  // Expiry date for receipt
   batchNumber?: string  // Batch number for records
+  // Package info
+  selectedPackage?: ProductPackage | null  // Selected package (null = base units)
+  packageQuantity?: number  // Number of packages (e.g., 2 strips)
+  baseUnitsTotal?: number  // Total in base units (for stock deduction)
+  // Batch info  
+  selectedBatchId?: string
 }
 
 interface Settings {
@@ -184,30 +208,48 @@ export default function POSPage() {
 
   const hasMoreProducts = !debouncedSearchQuery && displayCount < products.length
 
-  const addToCart = (product: Product) => {
-    const existingItem = cart.find((item) => item.id === product.id)
-    
+  const addToCart = (product: Product, selectedPackage?: ProductPackage | null) => {
+    const existingItem = cart.find((item) => item.id === product.id &&
+      item.selectedPackage?.id === selectedPackage?.id)
+
+    // Get the first active batch (FIFO - earliest expiry first)
+    const firstBatch = product.batches && product.batches.length > 0 ? product.batches[0] : null
+
+    // Determine price: use package price if selected, otherwise base price
+    const priceToUse = selectedPackage ? selectedPackage.price : product.price
+
     if (existingItem) {
       // Allow selling beyond stock (negative stock allowed)
       // Move updated item to top of cart
+      const newQty = existingItem.cartQuantity + 1
+      const baseUnits = selectedPackage ? newQty * selectedPackage.unitsPerPackage : newQty
       const updatedItem = {
         ...existingItem,
-        cartQuantity: existingItem.cartQuantity + 1,
-        subtotal: (existingItem.cartQuantity + 1) * existingItem.sellingPrice,
+        cartQuantity: newQty,
+        packageQuantity: selectedPackage ? newQty : undefined,
+        baseUnitsTotal: baseUnits,
+        subtotal: newQty * existingItem.sellingPrice,
       }
       setCart([
         updatedItem,
-        ...cart.filter((item) => item.id !== product.id)
+        ...cart.filter((item) => !(item.id === product.id && item.selectedPackage?.id === selectedPackage?.id))
       ])
     } else {
       // Add new item at the top of cart
+      const baseUnits = selectedPackage ? 1 * selectedPackage.unitsPerPackage : 1
       setCart([
         {
           ...product,
           cartQuantity: 1,
-          costPrice: product.costPrice,  // Store cost price from inventory
-          sellingPrice: product.price,  // Initialize selling price (retail price)
-          subtotal: product.price,
+          costPrice: firstBatch?.costPrice || product.costPrice,
+          sellingPrice: priceToUse,
+          subtotal: priceToUse,
+          selectedPackage: selectedPackage || null,
+          packageQuantity: selectedPackage ? 1 : undefined,
+          baseUnitsTotal: baseUnits,
+          selectedBatchId: firstBatch?.id,
+          batchNumber: firstBatch?.batchNumber || product.batchNumber,
+          expiryDate: firstBatch?.expiryDate || product.expiryDate,
         },
         ...cart,
       ])
@@ -218,7 +260,7 @@ export default function POSPage() {
     setCart(cart.filter((item) => item.id !== productId))
   }
 
-  const updateCartQuantity = (productId: string, quantity: number) => {
+  const updateCartQuantity = (productId: string, quantity: number, packageId?: string) => {
     // Allow any quantity (negative stock allowed for continuous sales)
     if (quantity <= 0) {
       removeFromCart(productId)
@@ -226,30 +268,39 @@ export default function POSPage() {
     }
 
     setCart(
-      cart.map((item) =>
-        item.id === productId
-          ? {
-              ...item,
-              cartQuantity: quantity,
-              subtotal: quantity * item.sellingPrice,
-            }
-          : item
-      )
+      cart.map((item) => {
+        // Match by product id and optionally package id
+        const matches = item.id === productId &&
+          (packageId === undefined || item.selectedPackage?.id === packageId)
+        if (!matches) return item
+
+        const baseUnits = item.selectedPackage
+          ? quantity * item.selectedPackage.unitsPerPackage
+          : quantity
+
+        return {
+          ...item,
+          cartQuantity: quantity,
+          packageQuantity: item.selectedPackage ? quantity : undefined,
+          baseUnitsTotal: baseUnits,
+          subtotal: quantity * item.sellingPrice,
+        }
+      })
     )
   }
 
   // Update selling price for an item (Tally-like flexible pricing)
   const updateSellingPrice = (productId: string, newPrice: number) => {
     if (newPrice < 0) return
-    
+
     setCart(
       cart.map((item) =>
         item.id === productId
           ? {
-              ...item,
-              sellingPrice: newPrice,
-              subtotal: item.cartQuantity * newPrice,
-            }
+            ...item,
+            sellingPrice: newPrice,
+            subtotal: item.cartQuantity * newPrice,
+          }
           : item
       )
     )
@@ -260,15 +311,15 @@ export default function POSPage() {
   const taxAmount = total * (taxRate / 100)
   const grandTotal = total + taxAmount
   const change = amountPaid ? parseFloat(amountPaid) - grandTotal : 0
-  
+
   // For HABAKKUK account, use selected staff name; otherwise use logged-in user
-  const staffName = isHabakkukAccount && selectedStaff 
-    ? `${selectedStaff.name} of HABAKKUK` 
+  const staffName = isHabakkukAccount && selectedStaff
+    ? `${selectedStaff.name} of HABAKKUK`
     : session?.user?.name || "Staff"
-  
+
   // The actual staff ID for transaction recording
-  const transactionStaffId = isHabakkukAccount && selectedStaff 
-    ? selectedStaff.id 
+  const transactionStaffId = isHabakkukAccount && selectedStaff
+    ? selectedStaff.id
     : session?.user?.id
 
   const handleCompleteSale = () => {
@@ -294,12 +345,12 @@ export default function POSPage() {
     setIsProcessing(true)
 
     // Determine staff name for this specific transaction
-    const receiptStaffName = isHabakkukAccount && staffForReceipt 
-      ? `${staffForReceipt.name} of HABAKKUK` 
+    const receiptStaffName = isHabakkukAccount && staffForReceipt
+      ? `${staffForReceipt.name} of HABAKKUK`
       : session?.user?.name || "Staff"
-    
-    const receiptStaffId = isHabakkukAccount && staffForReceipt 
-      ? staffForReceipt.id 
+
+    const receiptStaffId = isHabakkukAccount && staffForReceipt
+      ? staffForReceipt.id
       : session?.user?.id
 
     try {
@@ -309,13 +360,16 @@ export default function POSPage() {
         body: JSON.stringify({
           items: cart.map((item) => ({
             productId: item.id,
-            quantity: item.cartQuantity,
-            unitPrice: item.sellingPrice,  // Use editable selling price
-            costPrice: item.costPrice,  // Include cost price for records
+            quantity: item.baseUnitsTotal || item.cartQuantity,  // Always send base units
+            unitPrice: item.sellingPrice,
+            costPrice: item.costPrice,
+            packageName: item.selectedPackage?.name || null,
+            packageQuantity: item.packageQuantity || null,
+            batchId: item.selectedBatchId || null,
           })),
           paymentMethod,
-          staffId: receiptStaffId,  // Pass the actual staff member ID
-          staffName: receiptStaffName,  // Pass formatted staff name for receipt
+          staffId: receiptStaffId,
+          staffName: receiptStaffName,
         }),
       })
 
@@ -326,20 +380,20 @@ export default function POSPage() {
           title: "Success",
           description: "Transaction completed successfully",
         })
-        
+
         // Print receipt with correct staff name
         printReceipt(data.transaction, receiptStaffName)
-        
+
         // Clear cart and localStorage
         setCart([])
         localStorage.removeItem('pos-cart')
-        
+
         // Reset selected staff for next transaction
         setSelectedStaff(null)
-        
+
         // Reset payment fields
         setAmountPaid("")
-        
+
         // Refresh products
         fetchProducts()
       } else {
@@ -621,14 +675,21 @@ export default function POSPage() {
               <tr>
                 <td>
                   <span class="item-name">${item.name}</span>
-                  ${item.sku ? `<br/><span class="item-sku">${item.sku}</span>` : ""}
-                  ${item.expiryDate ? `<br/><span class="item-sku">Exp: ${new Date(item.expiryDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</span>` : ""}
+                  ${item.selectedPackage ? `<br/><span class="item-sku" style="color: #2563eb;">${item.selectedPackage.name} (${item.selectedPackage.unitsPerPackage} ${item.unitOfMeasure}s)</span>` : ''}
+                  ${item.sku ? `<br/><span class="item-sku">${item.sku}</span>` : ''}
+                  ${item.batchNumber ? `<br/><span class="item-sku">Batch: ${item.batchNumber}</span>` : ''}
+                  ${item.expiryDate ? `<br/><span class="item-sku">Exp: ${new Date(item.expiryDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</span>` : ''}
                 </td>
-                <td class="text-center">${item.cartQuantity}</td>
+                <td class="text-center">
+                  ${item.selectedPackage
+        ? `${item.cartQuantity} ${item.selectedPackage.name}${item.cartQuantity > 1 ? 's' : ''}<br/><span style="font-size: 8px; color: #666;">(${item.baseUnitsTotal || item.cartQuantity} units)</span>`
+        : item.cartQuantity
+      }
+                </td>
                 <td class="text-right">${formatCurrency(item.sellingPrice, currency)}</td>
                 <td class="text-right"><strong>${formatCurrency(item.subtotal, currency)}</strong></td>
               </tr>
-            `).join("")}
+            `).join('')}
             </tbody>
           </table>
 
@@ -809,25 +870,59 @@ export default function POSPage() {
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-[600px] overflow-y-auto">
                 {filteredProducts.map((product) => (
-                  <button
+                  <div
                     key={product.id}
-                    onClick={() => addToCart(product)}
                     className="p-4 border rounded-lg hover:bg-gray-50 text-left transition-colors"
                   >
-                    <div className="font-medium text-sm">{product.name}</div>
-                    <div className="text-xs text-gray-500 mt-1">{product.sku}</div>
-                    <div className="mt-2 space-y-1">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-500">Cost:</span>
-                        <span className="text-xs text-gray-600 font-medium">{formatCurrency(product.costPrice)}</span>
+                    <button
+                      onClick={() => addToCart(product)}
+                      className="w-full text-left"
+                    >
+                      <div className="font-medium text-sm">{product.name}</div>
+                      <div className="text-xs text-gray-500 mt-1">{product.sku}</div>
+                      <div className="mt-2 space-y-1">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-gray-500">Cost:</span>
+                          <span className="text-xs text-gray-600 font-medium">{formatCurrency(product.costPrice)}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-green-600">Sell:</span>
+                          <span className="text-primary font-bold">{formatCurrency(product.price)}</span>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-green-600">Sell:</span>
-                        <span className="text-primary font-bold">{formatCurrency(product.price)}</span>
+                      <div className="text-xs text-gray-500 mt-1 pt-1 border-t">Stock: {product.quantity}</div>
+                    </button>
+                    {/* Package options */}
+                    {product.packages && product.packages.length > 0 && (
+                      <div className="mt-2 pt-2 border-t space-y-1">
+                        <div className="text-xs text-gray-500 flex items-center gap-1">
+                          <Package className="h-3 w-3" />
+                          Packages:
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {product.packages.map((pkg) => (
+                            <button
+                              key={pkg.id}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                addToCart(product, pkg)
+                              }}
+                              className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full hover:bg-blue-100 transition-colors"
+                              title={`${pkg.name}: ${pkg.unitsPerPackage} units @ ${formatCurrency(pkg.price)}`}
+                            >
+                              {pkg.name} ({pkg.unitsPerPackage})
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1 pt-1 border-t">Stock: {product.quantity}</div>
-                  </button>
+                    )}
+                    {/* Batch expiry info */}
+                    {product.batches && product.batches.length > 0 && (
+                      <div className="text-xs text-orange-600 mt-1">
+                        Exp: {new Date(product.batches[0].expiryDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
               {hasMoreProducts && (
@@ -856,11 +951,23 @@ export default function POSPage() {
             <CardContent>
               <div className="space-y-4 max-h-[400px] overflow-y-auto">
                 {cart.map((item) => (
-                  <div key={item.id} className="border rounded-lg p-3">
+                  <div key={`${item.id}-${item.selectedPackage?.id || 'base'}`} className="border rounded-lg p-3">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="font-medium text-sm">{item.name}</div>
+                        {item.selectedPackage && (
+                          <div className="text-xs text-blue-600 flex items-center gap-1">
+                            <Package className="h-3 w-3" />
+                            {item.selectedPackage.name} ({item.selectedPackage.unitsPerPackage} {item.unitOfMeasure}s)
+                          </div>
+                        )}
                         <div className="text-xs text-gray-400">Cost: {formatCurrency(item.costPrice)}</div>
+                        {item.batchNumber && (
+                          <div className="text-xs text-gray-500">
+                            Batch: {item.batchNumber}
+                            {item.expiryDate && ` | Exp: ${new Date(item.expiryDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}`}
+                          </div>
+                        )}
                       </div>
                       <Button
                         variant="ghost"
@@ -873,7 +980,9 @@ export default function POSPage() {
                     {/* Editable Selling Price (Tally-like) */}
                     <div className="flex items-center gap-2 mt-2">
                       <div className="flex-1">
-                        <Label className="text-xs text-gray-500">Selling Price</Label>
+                        <Label className="text-xs text-gray-500">
+                          {item.selectedPackage ? `Price/${item.selectedPackage.name}` : 'Selling Price'}
+                        </Label>
                         <Input
                           type="number"
                           min="0"
@@ -886,26 +995,34 @@ export default function POSPage() {
                         />
                       </div>
                       <div className="flex-1">
-                        <Label className="text-xs text-gray-500">Qty</Label>
+                        <Label className="text-xs text-gray-500">
+                          {item.selectedPackage ? `${item.selectedPackage.name}s` : 'Qty'}
+                        </Label>
                         <Input
                           type="number"
                           min="1"
                           value={item.cartQuantity}
                           onChange={(e) =>
-                            updateCartQuantity(item.id, parseInt(e.target.value))
+                            updateCartQuantity(item.id, parseInt(e.target.value), item.selectedPackage?.id)
                           }
                           className="h-8 text-sm"
                         />
                       </div>
                     </div>
+                    {/* Show base units if package selected */}
+                    {item.selectedPackage && item.baseUnitsTotal && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        = {item.baseUnitsTotal} {item.unitOfMeasure}s total
+                      </div>
+                    )}
                     <div className="flex items-center justify-between mt-2 pt-2 border-t">
                       <span className="text-xs text-gray-500">Subtotal</span>
                       <div className="font-semibold">{formatCurrency(item.subtotal)}</div>
                     </div>
                     {item.sellingPrice !== item.costPrice && (
                       <div className={`text-xs mt-1 ${item.sellingPrice > item.costPrice ? 'text-green-600' : 'text-orange-600'}`}>
-                        {item.sellingPrice > item.costPrice 
-                          ? `+${formatCurrency(item.sellingPrice - item.costPrice)} margin` 
+                        {item.sellingPrice > item.costPrice
+                          ? `+${formatCurrency(item.sellingPrice - item.costPrice)} margin`
                           : `${formatCurrency(item.sellingPrice - item.costPrice)} discount`}
                       </div>
                     )}
@@ -1065,7 +1182,7 @@ export default function POSPage() {
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <button
@@ -1479,9 +1596,9 @@ function ReceiptPreviewDialog({
             {/* Header */}
             <div className="text-center border-b border-dashed border-black pb-2 mb-2">
               {settings?.logo && (
-                <img 
-                  src={settings.logo} 
-                  alt="Logo" 
+                <img
+                  src={settings.logo}
+                  alt="Logo"
                   className="w-14 h-14 mx-auto object-contain mb-2"
                 />
               )}

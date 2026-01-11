@@ -68,7 +68,7 @@ model Product {
   costPrice         Float
   quantity          Int      @default(0)
   reorderLevel      Int      @default(10)
-  unitOfMeasure     String   @default("Unit")
+  unitOfMeasure     String   @default("Unit")  // Base unit: Tablet, ml, Capsule, etc.
   expiryDate        DateTime?
   manufacturer      String?
   batchNumber       String?
@@ -80,8 +80,49 @@ model Product {
   orderItems        OrderItem[]
   transactionItems  TransactionItem[]
   purchaseOrderItems PurchaseOrderItem[]
+  packages          ProductPackage[]
+  batches           ProductBatch[]
   
   @@map("products")
+}
+
+// User-defined packages for a product (Strip=10, Box=100, Dozen=12)
+model ProductPackage {
+  id              String   @id @default(cuid())
+  productId       String
+  name            String   // "Strip", "Box", "Dozen", "Blister" - user-defined
+  unitsPerPackage Int      // Number of base units in this package
+  price           Float    // Selling price for this package
+  isDefault       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@unique([productId, name])
+  @@map("product_packages")
+}
+
+// Multi-batch tracking with individual expiry dates (FIFO by expiry)
+model ProductBatch {
+  id              String   @id @default(cuid())
+  productId       String
+  batchNumber     String
+  quantity        Int      // Current units in this batch
+  initialQuantity Int      // Original quantity when received  
+  expiryDate      DateTime
+  receivedDate    DateTime @default(now())
+  costPrice       Float    // Cost for this specific batch
+  isActive        Boolean  @default(true)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  transactionItems TransactionItem[]
+  
+  @@unique([productId, batchNumber])
+  @@map("product_batches")
 }
 
 model StockAdjustment {
@@ -128,13 +169,17 @@ model TransactionItem {
   id              String   @id @default(cuid())
   transactionId   String
   productId       String
-  quantity        Int
+  batchId         String?  // Link to specific batch sold (FIFO by expiry)
+  quantity        Int      // Quantity in base units
   unitPrice       Float
   costPrice       Float?   // Cost price at time of sale for accurate profit calculation
   totalPrice      Float
+  packageName     String?  // "Strip", "Box", etc. - null for base unit sales
+  packageQuantity Int?     // Number of packages sold (e.g., 2 strips)
   
   transaction     Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   product         Product  @relation(fields: [productId], references: [id])
+  batch           ProductBatch? @relation(fields: [batchId], references: [id])
   
   @@map("transaction_items")
 }

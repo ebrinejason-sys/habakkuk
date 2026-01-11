@@ -23,22 +23,40 @@ import { useToast } from "@/hooks/use-toast"
 import { Plus, Upload, Search, Edit, AlertTriangle, Package, PackagePlus, X, ChevronDown, ChevronUp } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 
+interface ProductPackage {
+  id?: string
+  name: string
+  unitsPerPackage: number
+  price: number
+  isDefault?: boolean
+}
+
+interface ProductBatch {
+  id?: string
+  batchNumber: string
+  quantity: number
+  expiryDate: string
+  costPrice: number
+}
+
 interface Product {
   id: string
   name: string
   sku: string
   barcode?: string
   category: string
-  price: number
-  costPrice: number
-  quantity: number
+  price: number  // Selling price per basic unit
+  costPrice: number  // Cost per basic unit
+  quantity: number  // Total quantity in basic units
   initialStock?: number
   reorderLevel: number
-  unitOfMeasure: string
+  unitOfMeasure: string  // Basic unit type: "Tablet", "Capsule", "ml", etc.
   description?: string
   expiryDate?: string
   batchNumber?: string
   manufacturer?: string
+  packages?: ProductPackage[]
+  batches?: ProductBatch[]
 }
 
 export default function InventoryPage() {
@@ -151,7 +169,7 @@ export default function InventoryPage() {
         <Card className="mb-6 border-orange-200 bg-orange-50">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle 
+              <CardTitle
                 className="flex items-center text-orange-800 cursor-pointer hover:text-orange-900"
                 onClick={() => setLowStockExpanded(!lowStockExpanded)}
               >
@@ -423,23 +441,68 @@ interface CreateProductDialogProps {
 }
 
 function CreateProductDialog({ onClose, onSuccess }: CreateProductDialogProps) {
+  // Section 1: Basic Product Info
   const [formData, setFormData] = useState({
     name: "",
     sku: "",
     category: "",
-    price: "",
-    costPrice: "",
-    quantity: "",
+    costPrice: "",  // Cost per basic unit
+    price: "",      // Selling price per basic unit
+    quantity: "",   // Total in basic units
     reorderLevel: "10",
-    unitOfMeasure: "Unit",
+    unitOfMeasure: "Tablet",  // Basic unit type
     barcode: "",
     description: "",
-    batchNumber: "",
     manufacturer: "",
-    expiryDate: "",
   })
+
+  // Section 2: Package Definitions
+  const [packages, setPackages] = useState<{ name: string; unitsPerPackage: string; price: string }[]>([])
+  const [newPackage, setNewPackage] = useState({ name: "", unitsPerPackage: "", price: "" })
+
+  // Section 3: Batch/Stock Tracking
+  const [batches, setBatches] = useState<{ batchNumber: string; quantity: string; expiryDate: string; costPrice: string }[]>([])
+  const [newBatch, setNewBatch] = useState({ batchNumber: "", quantity: "", expiryDate: "", costPrice: "" })
+
+  // Section visibility
+  const [showPackages, setShowPackages] = useState(false)
+  const [showBatches, setShowBatches] = useState(false)
+
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
+
+  // Auto-calculate package price when selling price or units change
+  const calculatePackagePrice = (unitsPerPackage: string): string => {
+    const units = parseFloat(unitsPerPackage) || 0
+    const pricePerUnit = parseFloat(formData.price) || 0
+    return (units * pricePerUnit).toString()
+  }
+
+  // Add package to list
+  const addPackage = () => {
+    if (!newPackage.name || !newPackage.unitsPerPackage) {
+      toast({ variant: "destructive", title: "Error", description: "Package name and units required" })
+      return
+    }
+    const calculatedPrice = newPackage.price || calculatePackagePrice(newPackage.unitsPerPackage)
+    setPackages([...packages, { ...newPackage, price: calculatedPrice }])
+    setNewPackage({ name: "", unitsPerPackage: "", price: "" })
+  }
+
+  // Add batch to list
+  const addBatch = () => {
+    if (!newBatch.batchNumber || !newBatch.quantity || !newBatch.expiryDate) {
+      toast({ variant: "destructive", title: "Error", description: "Batch number, quantity, and expiry required" })
+      return
+    }
+    const batchCost = newBatch.costPrice || formData.costPrice
+    setBatches([...batches, { ...newBatch, costPrice: batchCost }])
+    setNewBatch({ batchNumber: "", quantity: "", expiryDate: "", costPrice: "" })
+
+    // Update total quantity
+    const newTotal = batches.reduce((sum, b) => sum + (parseFloat(b.quantity) || 0), 0) + (parseFloat(newBatch.quantity) || 0)
+    setFormData({ ...formData, quantity: newTotal.toString() })
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -453,187 +516,263 @@ function CreateProductDialog({ onClose, onSuccess }: CreateProductDialogProps) {
           ...formData,
           price: parseFloat(formData.price),
           costPrice: parseFloat(formData.costPrice),
-          quantity: parseInt(formData.quantity),
+          quantity: parseInt(formData.quantity) || 0,
           reorderLevel: parseInt(formData.reorderLevel),
-          unitOfMeasure: formData.unitOfMeasure,
           barcode: formData.barcode || null,
-          batchNumber: formData.batchNumber || null,
           manufacturer: formData.manufacturer || null,
-          expiryDate: formData.expiryDate || null,
+          category: formData.category || "General",
+          // Include packages and batches for API to create
+          packages: packages.map(p => ({
+            name: p.name,
+            unitsPerPackage: parseInt(p.unitsPerPackage),
+            price: parseFloat(p.price),
+          })),
+          batches: batches.map(b => ({
+            batchNumber: b.batchNumber,
+            quantity: parseInt(b.quantity),
+            expiryDate: b.expiryDate,
+            costPrice: parseFloat(b.costPrice),
+          })),
         }),
       })
 
       if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Product created successfully",
-        })
+        toast({ title: "Success", description: "Product created successfully" })
         onSuccess()
       } else {
         const data = await response.json()
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: data.error || "Failed to create product",
-        })
+        toast({ variant: "destructive", title: "Error", description: data.error || "Failed to create product" })
       }
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "An error occurred",
-      })
+      toast({ variant: "destructive", title: "Error", description: "An error occurred" })
     } finally {
       setIsLoading(false)
     }
   }
 
+  const basicUnits = [
+    { value: "Tablet", label: "Tablet" },
+    { value: "Capsule", label: "Capsule" },
+    { value: "ml", label: "ml (Milliliter)" },
+    { value: "mg", label: "mg (Milligram)" },
+    { value: "Piece", label: "Piece" },
+    { value: "Dose", label: "Dose" },
+    { value: "Sachet", label: "Sachet" },
+    { value: "Ampoule", label: "Ampoule" },
+    { value: "Vial", label: "Vial" },
+    { value: "Tube", label: "Tube" },
+    { value: "Suppository", label: "Suppository" },
+    { value: "Drop", label: "Drop" },
+  ]
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <CardHeader>
-          <CardTitle>Add New Product</CardTitle>
+      <Card className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-center">
+            <CardTitle>Add New Product</CardTitle>
+            <Button variant="ghost" size="sm" onClick={onClose}><X className="h-4 w-4" /></Button>
+          </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Product Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
+
+            {/* SECTION 1: Basic Product Info */}
+            <div className="border rounded-lg p-4 bg-blue-50/50">
+              <h3 className="text-sm font-semibold text-blue-800 mb-3 flex items-center">
+                <Package className="h-4 w-4 mr-2" />
+                Section 1: Basic Product Information
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Product Name *</Label>
+                  <Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required placeholder="e.g., Paracetamol 500mg" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sku">SKU *</Label>
+                  <Input id="sku" value={formData.sku} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} required placeholder="e.g., PAR-500" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="category">Category</Label>
+                  <Input id="category" value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} placeholder="e.g., Pain Relief (optional)" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="unitOfMeasure">Basic Unit *</Label>
+                  <select id="unitOfMeasure" value={formData.unitOfMeasure} onChange={(e) => setFormData({ ...formData, unitOfMeasure: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" required>
+                    {basicUnits.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="costPrice">Cost per {formData.unitOfMeasure} *</Label>
+                  <Input id="costPrice" type="number" step="0.01" value={formData.costPrice} onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })} required placeholder="e.g., 50" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="price">Selling Price per {formData.unitOfMeasure} *</Label>
+                  <Input id="price" type="number" step="0.01" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} required placeholder="e.g., 100" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="quantity">Total Quantity ({formData.unitOfMeasure}s) *</Label>
+                  <Input id="quantity" type="number" value={formData.quantity} onChange={(e) => setFormData({ ...formData, quantity: e.target.value })} required placeholder="e.g., 1000" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reorderLevel">Reorder Level</Label>
+                  <Input id="reorderLevel" type="number" value={formData.reorderLevel} onChange={(e) => setFormData({ ...formData, reorderLevel: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="barcode">Barcode</Label>
+                  <Input id="barcode" value={formData.barcode} onChange={(e) => setFormData({ ...formData, barcode: e.target.value })} placeholder="Scan or enter" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="manufacturer">Manufacturer</Label>
+                  <Input id="manufacturer" value={formData.manufacturer} onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })} placeholder="e.g., Cipla" />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="sku">SKU *</Label>
-                <Input
-                  id="sku"
-                  value={formData.sku}
-                  onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                  required
-                />
-              </div>              <div className="space-y-2">
-                <Label htmlFor="barcode">Barcode</Label>
-                <Input
-                  id="barcode"
-                  value={formData.barcode}
-                  onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                  placeholder="Scan or enter barcode"
-                />
-              </div>              <div className="space-y-2">
-                <Label htmlFor="category">Category *</Label>
-                <Input
-                  id="category"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="price">Price *</Label>
-                <Input
-                  id="price"
-                  type="number"
-                  step="0.01"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="costPrice">Cost Price *</Label>
-                <Input
-                  id="costPrice"
-                  type="number"
-                  step="0.01"
-                  value={formData.costPrice}
-                  onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="quantity">Quantity *</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                  required
-                />
-              </div>              <div className="space-y-2">
-                <Label htmlFor="unitOfMeasure">Unit of Measure / Package</Label>
-                <select
-                  id="unitOfMeasure"
-                  value={formData.unitOfMeasure}
-                  onChange={(e) => setFormData({ ...formData, unitOfMeasure: e.target.value })}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  title="Unit of Measure"
-                  required
-                >
-                  <option value="">Select Package Type</option>
-                  <option value="Amps">Amps (Ampoules)</option>
-                  <option value="Bot">Bot (Bottle)</option>
-                  <option value="Caps">Caps (Capsules)</option>
-                  <option value="Dos">Dos (Doses)</option>
-                  <option value="Liquid">Liquid</option>
-                  <option value="Loz">Loz (Lozenges)</option>
-                  <option value="Pcs">Pcs (Pieces)</option>
-                  <option value="Pkt">Pkt (Packet)</option>
-                  <option value="Prs">Prs (Pairs)</option>
-                  <option value="Roll">Roll</option>
-                  <option value="Strip">Strip</option>
-                  <option value="Supp">Supp (Suppositories)</option>
-                  <option value="Syrp">Syrp (Syrup)</option>
-                  <option value="Tabs">Tabs (Tablets)</option>
-                  <option value="Tubes">Tubes</option>
-                  <option value="Vaccine">Vaccine</option>
-                  <option value="Vial">Vial</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="batchNumber">Batch Number</Label>
-                <Input
-                  id="batchNumber"
-                  value={formData.batchNumber}
-                  onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value })}
-                  placeholder="e.g., BATCH-2026-001"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="manufacturer">Manufacturer</Label>
-                <Input
-                  id="manufacturer"
-                  value={formData.manufacturer}
-                  onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="expiryDate">Expiry Date</Label>
-                <Input
-                  id="expiryDate"
-                  type="date"
-                  value={formData.expiryDate}
-                  onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2 col-span-2">
-                <Label htmlFor="description">Description</Label>
-                <Input
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                />
-              </div>
+              {formData.price && formData.costPrice && (
+                <div className="mt-3 p-2 bg-green-100 rounded text-sm text-green-800">
+                  <strong>Profit per {formData.unitOfMeasure}:</strong> {formatCurrency((parseFloat(formData.price) || 0) - (parseFloat(formData.costPrice) || 0))}
+                  ({(((parseFloat(formData.price) || 0) - (parseFloat(formData.costPrice) || 0)) / (parseFloat(formData.costPrice) || 1) * 100).toFixed(1)}% margin)
+                </div>
+              )}
             </div>
-            <div className="flex justify-end space-x-2 pt-4">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Creating..." : "Create Product"}
-              </Button>
+
+            {/* SECTION 2: Package Definitions */}
+            <div className="border rounded-lg overflow-hidden">
+              <button type="button" onClick={() => setShowPackages(!showPackages)} className="w-full p-3 bg-purple-50 text-left flex justify-between items-center hover:bg-purple-100 transition-colors">
+                <span className="text-sm font-semibold text-purple-800 flex items-center">
+                  <PackagePlus className="h-4 w-4 mr-2" />
+                  Section 2: Package Definitions (Optional)
+                </span>
+                {showPackages ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+              {showPackages && (
+                <div className="p-4 space-y-3">
+                  <p className="text-xs text-gray-600">Define how the product is packaged for easier sales (e.g., Strip = 10 tablets)</p>
+
+                  {packages.length > 0 && (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Package Name</TableHead>
+                          <TableHead>Units/Package</TableHead>
+                          <TableHead>Price</TableHead>
+                          <TableHead></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {packages.map((pkg, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell>{pkg.name}</TableCell>
+                            <TableCell>{pkg.unitsPerPackage} {formData.unitOfMeasure}s</TableCell>
+                            <TableCell>{formatCurrency(parseFloat(pkg.price))}</TableCell>
+                            <TableCell>
+                              <Button type="button" variant="ghost" size="sm" onClick={() => setPackages(packages.filter((_, i) => i !== idx))}>
+                                <X className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+
+                  <div className="flex gap-2 items-end">
+                    <div className="flex-1">
+                      <Label className="text-xs">Package Name</Label>
+                      <Input placeholder="e.g., Strip" value={newPackage.name} onChange={(e) => setNewPackage({ ...newPackage, name: e.target.value })} />
+                    </div>
+                    <div className="w-28">
+                      <Label className="text-xs">Units</Label>
+                      <Input type="number" placeholder="10" value={newPackage.unitsPerPackage} onChange={(e) => setNewPackage({ ...newPackage, unitsPerPackage: e.target.value, price: calculatePackagePrice(e.target.value) })} />
+                    </div>
+                    <div className="w-32">
+                      <Label className="text-xs">Price (auto)</Label>
+                      <Input type="number" placeholder="Auto" value={newPackage.price || calculatePackagePrice(newPackage.unitsPerPackage)} onChange={(e) => setNewPackage({ ...newPackage, price: e.target.value })} />
+                    </div>
+                    <Button type="button" onClick={addPackage} size="sm"><Plus className="h-4 w-4" /></Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* SECTION 3: Batch/Stock Tracking */}
+            <div className="border rounded-lg overflow-hidden">
+              <button type="button" onClick={() => setShowBatches(!showBatches)} className="w-full p-3 bg-orange-50 text-left flex justify-between items-center hover:bg-orange-100 transition-colors">
+                <span className="text-sm font-semibold text-orange-800 flex items-center">
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  Section 3: Batch/Stock Tracking (Optional)
+                </span>
+                {showBatches ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+              {showBatches && (
+                <div className="p-4 space-y-3">
+                  <p className="text-xs text-gray-600">Track stock by batch for expiry management (FIFO: oldest sold first)</p>
+
+                  {batches.length > 0 && (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Batch #</TableHead>
+                          <TableHead>Qty</TableHead>
+                          <TableHead>Expiry</TableHead>
+                          <TableHead>Cost</TableHead>
+                          <TableHead></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {batches.map((batch, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell>{batch.batchNumber}</TableCell>
+                            <TableCell>{batch.quantity}</TableCell>
+                            <TableCell>{new Date(batch.expiryDate).toLocaleDateString()}</TableCell>
+                            <TableCell>{formatCurrency(parseFloat(batch.costPrice))}</TableCell>
+                            <TableCell>
+                              <Button type="button" variant="ghost" size="sm" onClick={() => {
+                                const removed = batches[idx]
+                                setBatches(batches.filter((_, i) => i !== idx))
+                                const newTotal = batches.filter((_, i) => i !== idx).reduce((sum, b) => sum + (parseFloat(b.quantity) || 0), 0)
+                                setFormData({ ...formData, quantity: newTotal.toString() })
+                              }}>
+                                <X className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+
+                  <div className="flex gap-2 items-end flex-wrap">
+                    <div className="flex-1 min-w-32">
+                      <Label className="text-xs">Batch Number</Label>
+                      <Input placeholder="BATCH-001" value={newBatch.batchNumber} onChange={(e) => setNewBatch({ ...newBatch, batchNumber: e.target.value })} />
+                    </div>
+                    <div className="w-24">
+                      <Label className="text-xs">Quantity</Label>
+                      <Input type="number" placeholder="100" value={newBatch.quantity} onChange={(e) => setNewBatch({ ...newBatch, quantity: e.target.value })} />
+                    </div>
+                    <div className="w-36">
+                      <Label className="text-xs">Expiry Date</Label>
+                      <Input type="date" value={newBatch.expiryDate} onChange={(e) => setNewBatch({ ...newBatch, expiryDate: e.target.value })} />
+                    </div>
+                    <div className="w-28">
+                      <Label className="text-xs">Cost (optional)</Label>
+                      <Input type="number" placeholder={formData.costPrice || "Cost"} value={newBatch.costPrice} onChange={(e) => setNewBatch({ ...newBatch, costPrice: e.target.value })} />
+                    </div>
+                    <Button type="button" onClick={addBatch} size="sm"><Plus className="h-4 w-4" /></Button>
+                  </div>
+
+                  {batches.length > 0 && (
+                    <div className="p-2 bg-orange-100 rounded text-sm text-orange-800">
+                      <strong>Total from batches:</strong> {batches.reduce((sum, b) => sum + (parseInt(b.quantity) || 0), 0)} {formData.unitOfMeasure}s
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4 border-t">
+              <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+              <Button type="submit" disabled={isLoading}>{isLoading ? "Creating..." : "Create Product"}</Button>
             </div>
           </form>
         </CardContent>
@@ -736,10 +875,10 @@ function BulkUploadDialog({ onClose, onSuccess }: CreateProductDialogProps) {
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
             <p className="text-xs text-gray-600 font-medium mb-1">Supported column names:</p>
             <p className="text-xs text-gray-500">
-              <strong>Name:</strong> Name, Item Name, Stock Item, Product Name<br/>
-              <strong>Price:</strong> Price, Rate, MRP, Selling Price<br/>
-              <strong>Cost:</strong> Cost Price, Purchase Price, Cost<br/>
-              <strong>Quantity:</strong> Quantity, Qty, Stock, Closing Stock<br/>
+              <strong>Name:</strong> Name, Item Name, Stock Item, Product Name<br />
+              <strong>Price:</strong> Price, Rate, MRP, Selling Price<br />
+              <strong>Cost:</strong> Cost Price, Purchase Price, Cost<br />
+              <strong>Quantity:</strong> Quantity, Qty, Stock, Closing Stock<br />
               <strong>Category:</strong> Category, Group, Under
             </p>
           </div>
@@ -823,23 +962,89 @@ interface EditProductDialogProps {
 }
 
 function EditProductDialog({ product, onClose, onSuccess }: EditProductDialogProps) {
+  // Section 1: Basic Product Info
   const [formData, setFormData] = useState({
     name: product.name,
     sku: product.sku,
     barcode: product.barcode || "",
-    category: product.category,
-    price: product.price.toString(),
+    category: product.category || "",
     costPrice: product.costPrice?.toString() || "0",
+    price: product.price.toString(),
     quantity: product.quantity.toString(),
     reorderLevel: product.reorderLevel?.toString() || "10",
-    unitOfMeasure: product.unitOfMeasure || "Unit",
+    unitOfMeasure: product.unitOfMeasure || "Tablet",
     description: product.description || "",
-    batchNumber: product.batchNumber || "",
     manufacturer: product.manufacturer || "",
-    expiryDate: product.expiryDate ? product.expiryDate.split("T")[0] : "",
   })
+
+  // Section 2: Package Definitions (load from product)
+  const [packages, setPackages] = useState<{ id?: string; name: string; unitsPerPackage: string; price: string }[]>(
+    product.packages?.map(p => ({
+      id: p.id,
+      name: p.name,
+      unitsPerPackage: p.unitsPerPackage.toString(),
+      price: p.price.toString(),
+    })) || []
+  )
+  const [newPackage, setNewPackage] = useState({ name: "", unitsPerPackage: "", price: "" })
+  const [deletedPackageIds, setDeletedPackageIds] = useState<string[]>([])
+
+  // Section 3: Batch/Stock Tracking (load from product)
+  const [batches, setBatches] = useState<{ id?: string; batchNumber: string; quantity: string; expiryDate: string; costPrice: string }[]>(
+    product.batches?.map(b => ({
+      id: b.id,
+      batchNumber: b.batchNumber,
+      quantity: b.quantity.toString(),
+      expiryDate: b.expiryDate?.split("T")[0] || "",
+      costPrice: b.costPrice.toString(),
+    })) || []
+  )
+  const [newBatch, setNewBatch] = useState({ batchNumber: "", quantity: "", expiryDate: "", costPrice: "" })
+  const [deletedBatchIds, setDeletedBatchIds] = useState<string[]>([])
+
+  const [showPackages, setShowPackages] = useState((product.packages?.length || 0) > 0)
+  const [showBatches, setShowBatches] = useState((product.batches?.length || 0) > 0)
+
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
+
+  const calculatePackagePrice = (unitsPerPackage: string): string => {
+    const units = parseFloat(unitsPerPackage) || 0
+    const pricePerUnit = parseFloat(formData.price) || 0
+    return (units * pricePerUnit).toString()
+  }
+
+  const addPackage = () => {
+    if (!newPackage.name || !newPackage.unitsPerPackage) {
+      toast({ variant: "destructive", title: "Error", description: "Package name and units required" })
+      return
+    }
+    const calculatedPrice = newPackage.price || calculatePackagePrice(newPackage.unitsPerPackage)
+    setPackages([...packages, { ...newPackage, price: calculatedPrice }])
+    setNewPackage({ name: "", unitsPerPackage: "", price: "" })
+  }
+
+  const removePackage = (idx: number) => {
+    const pkg = packages[idx]
+    if (pkg.id) setDeletedPackageIds([...deletedPackageIds, pkg.id])
+    setPackages(packages.filter((_, i) => i !== idx))
+  }
+
+  const addBatch = () => {
+    if (!newBatch.batchNumber || !newBatch.quantity || !newBatch.expiryDate) {
+      toast({ variant: "destructive", title: "Error", description: "Batch number, quantity, and expiry required" })
+      return
+    }
+    const batchCost = newBatch.costPrice || formData.costPrice
+    setBatches([...batches, { ...newBatch, costPrice: batchCost }])
+    setNewBatch({ batchNumber: "", quantity: "", expiryDate: "", costPrice: "" })
+  }
+
+  const removeBatch = (idx: number) => {
+    const batch = batches[idx]
+    if (batch.id) setDeletedBatchIds([...deletedBatchIds, batch.id])
+    setBatches(batches.filter((_, i) => i !== idx))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -857,195 +1062,208 @@ function EditProductDialog({ product, onClose, onSuccess }: EditProductDialogPro
           quantity: parseInt(formData.quantity),
           reorderLevel: parseInt(formData.reorderLevel),
           barcode: formData.barcode || null,
-          batchNumber: formData.batchNumber || null,
           manufacturer: formData.manufacturer || null,
-          expiryDate: formData.expiryDate || null,
+          category: formData.category || "General",
+          packages: packages.map(p => ({
+            id: p.id,
+            name: p.name,
+            unitsPerPackage: parseInt(p.unitsPerPackage),
+            price: parseFloat(p.price),
+          })),
+          batches: batches.map(b => ({
+            id: b.id,
+            batchNumber: b.batchNumber,
+            quantity: parseInt(b.quantity),
+            expiryDate: b.expiryDate,
+            costPrice: parseFloat(b.costPrice),
+          })),
+          deletedPackageIds,
+          deletedBatchIds,
         }),
       })
 
       if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Product updated successfully",
-        })
+        toast({ title: "Success", description: "Product updated successfully" })
         onSuccess()
       } else {
         const data = await response.json()
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: data.error || "Failed to update product",
-        })
+        toast({ variant: "destructive", title: "Error", description: data.error || "Failed to update product" })
       }
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "An error occurred",
-      })
+      toast({ variant: "destructive", title: "Error", description: "An error occurred" })
     } finally {
       setIsLoading(false)
     }
   }
 
+  const basicUnits = [
+    { value: "Tablet", label: "Tablet" }, { value: "Capsule", label: "Capsule" },
+    { value: "ml", label: "ml (Milliliter)" }, { value: "mg", label: "mg (Milligram)" },
+    { value: "Piece", label: "Piece" }, { value: "Dose", label: "Dose" },
+    { value: "Sachet", label: "Sachet" }, { value: "Ampoule", label: "Ampoule" },
+    { value: "Vial", label: "Vial" }, { value: "Tube", label: "Tube" },
+    { value: "Suppository", label: "Suppository" }, { value: "Drop", label: "Drop" },
+  ]
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <CardHeader>
-          <CardTitle>Edit Product</CardTitle>
+      <Card className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-center">
+            <CardTitle>Edit Product: {product.name}</CardTitle>
+            <Button variant="ghost" size="sm" onClick={onClose}><X className="h-4 w-4" /></Button>
+          </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-name">Product Name *</Label>
-                <Input
-                  id="edit-name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
+
+            {/* SECTION 1: Basic Product Info */}
+            <div className="border rounded-lg p-4 bg-blue-50/50">
+              <h3 className="text-sm font-semibold text-blue-800 mb-3 flex items-center">
+                <Package className="h-4 w-4 mr-2" />
+                Section 1: Basic Product Information
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-name">Product Name *</Label>
+                  <Input id="edit-name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-sku">SKU</Label>
+                  <Input id="edit-sku" value={formData.sku} disabled className="bg-gray-100" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-category">Category</Label>
+                  <Input id="edit-category" value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-unitOfMeasure">Basic Unit *</Label>
+                  <select id="edit-unitOfMeasure" value={formData.unitOfMeasure} onChange={(e) => setFormData({ ...formData, unitOfMeasure: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" required>
+                    {basicUnits.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-costPrice">Cost per {formData.unitOfMeasure} *</Label>
+                  <Input id="edit-costPrice" type="number" step="0.01" value={formData.costPrice} onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-price">Selling Price per {formData.unitOfMeasure} *</Label>
+                  <Input id="edit-price" type="number" step="0.01" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-quantity">Total Quantity ({formData.unitOfMeasure}s)</Label>
+                  <Input id="edit-quantity" type="number" value={formData.quantity} onChange={(e) => setFormData({ ...formData, quantity: e.target.value })} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-reorderLevel">Reorder Level</Label>
+                  <Input id="edit-reorderLevel" type="number" value={formData.reorderLevel} onChange={(e) => setFormData({ ...formData, reorderLevel: e.target.value })} />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-sku">SKU *</Label>
-                <Input
-                  id="edit-sku"
-                  value={formData.sku}
-                  onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                  required
-                  disabled
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-barcode">Barcode</Label>
-                <Input
-                  id="edit-barcode"
-                  value={formData.barcode}
-                  onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-category">Category *</Label>
-                <Input
-                  id="edit-category"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-price">Price *</Label>
-                <Input
-                  id="edit-price"
-                  type="number"
-                  step="0.01"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-costPrice">Cost Price *</Label>
-                <Input
-                  id="edit-costPrice"
-                  type="number"
-                  step="0.01"
-                  value={formData.costPrice}
-                  onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-quantity">Quantity</Label>
-                <Input
-                  id="edit-quantity"
-                  type="number"
-                  value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-reorderLevel">Reorder Level</Label>
-                <Input
-                  id="edit-reorderLevel"
-                  type="number"
-                  value={formData.reorderLevel}
-                  onChange={(e) => setFormData({ ...formData, reorderLevel: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-unitOfMeasure">Unit of Measure / Package</Label>
-                <select
-                  id="edit-unitOfMeasure"
-                  value={formData.unitOfMeasure}
-                  onChange={(e) => setFormData({ ...formData, unitOfMeasure: e.target.value })}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  title="Unit of Measure"
-                  required
-                >
-                  <option value="">Select Package Type</option>
-                  <option value="Amps">Amps (Ampoules)</option>
-                  <option value="Bot">Bot (Bottle)</option>
-                  <option value="Caps">Caps (Capsules)</option>
-                  <option value="Dos">Dos (Doses)</option>
-                  <option value="Liquid">Liquid</option>
-                  <option value="Loz">Loz (Lozenges)</option>
-                  <option value="Pcs">Pcs (Pieces)</option>
-                  <option value="Pkt">Pkt (Packet)</option>
-                  <option value="Prs">Prs (Pairs)</option>
-                  <option value="Roll">Roll</option>
-                  <option value="Strip">Strip</option>
-                  <option value="Supp">Supp (Suppositories)</option>
-                  <option value="Syrp">Syrp (Syrup)</option>
-                  <option value="Tabs">Tabs (Tablets)</option>
-                  <option value="Tubes">Tubes</option>
-                  <option value="Vaccine">Vaccine</option>
-                  <option value="Vial">Vial</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-batchNumber">Batch Number</Label>
-                <Input
-                  id="edit-batchNumber"
-                  value={formData.batchNumber}
-                  onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value })}
-                  placeholder="e.g., BATCH-2026-001"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-manufacturer">Manufacturer</Label>
-                <Input
-                  id="edit-manufacturer"
-                  value={formData.manufacturer}
-                  onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-expiryDate">Expiry Date</Label>
-                <Input
-                  id="edit-expiryDate"
-                  type="date"
-                  value={formData.expiryDate}
-                  onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2 col-span-2">
-                <Label htmlFor="edit-description">Description</Label>
-                <Input
-                  id="edit-description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                />
-              </div>
+              {formData.price && formData.costPrice && (
+                <div className="mt-3 p-2 bg-green-100 rounded text-sm text-green-800">
+                  <strong>Profit per {formData.unitOfMeasure}:</strong> {formatCurrency((parseFloat(formData.price) || 0) - (parseFloat(formData.costPrice) || 0))}
+                  ({(((parseFloat(formData.price) || 0) - (parseFloat(formData.costPrice) || 0)) / (parseFloat(formData.costPrice) || 1) * 100).toFixed(1)}% margin)
+                </div>
+              )}
             </div>
-            <div className="flex justify-end space-x-2 pt-4">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Saving..." : "Save Changes"}
-              </Button>
+
+            {/* SECTION 2: Package Definitions */}
+            <div className="border rounded-lg overflow-hidden">
+              <button type="button" onClick={() => setShowPackages(!showPackages)} className="w-full p-3 bg-purple-50 text-left flex justify-between items-center hover:bg-purple-100">
+                <span className="text-sm font-semibold text-purple-800 flex items-center">
+                  <PackagePlus className="h-4 w-4 mr-2" />
+                  Section 2: Package Definitions ({packages.length})
+                </span>
+                {showPackages ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+              {showPackages && (
+                <div className="p-4 space-y-3">
+                  {packages.length > 0 && (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Package</TableHead>
+                          <TableHead>Units</TableHead>
+                          <TableHead>Price</TableHead>
+                          <TableHead></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {packages.map((pkg, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell>{pkg.name}</TableCell>
+                            <TableCell>{pkg.unitsPerPackage} {formData.unitOfMeasure}s</TableCell>
+                            <TableCell>{formatCurrency(parseFloat(pkg.price))}</TableCell>
+                            <TableCell><Button type="button" variant="ghost" size="sm" onClick={() => removePackage(idx)}><X className="h-4 w-4 text-red-500" /></Button></TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                  <div className="flex gap-2 items-end">
+                    <div className="flex-1"><Label className="text-xs">Package Name</Label><Input placeholder="Strip" value={newPackage.name} onChange={(e) => setNewPackage({ ...newPackage, name: e.target.value })} /></div>
+                    <div className="w-24"><Label className="text-xs">Units</Label><Input type="number" placeholder="10" value={newPackage.unitsPerPackage} onChange={(e) => setNewPackage({ ...newPackage, unitsPerPackage: e.target.value, price: calculatePackagePrice(e.target.value) })} /></div>
+                    <div className="w-28"><Label className="text-xs">Price</Label><Input type="number" value={newPackage.price || calculatePackagePrice(newPackage.unitsPerPackage)} onChange={(e) => setNewPackage({ ...newPackage, price: e.target.value })} /></div>
+                    <Button type="button" onClick={addPackage} size="sm"><Plus className="h-4 w-4" /></Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* SECTION 3: Batch/Stock Tracking */}
+            <div className="border rounded-lg overflow-hidden">
+              <button type="button" onClick={() => setShowBatches(!showBatches)} className="w-full p-3 bg-orange-50 text-left flex justify-between items-center hover:bg-orange-100">
+                <span className="text-sm font-semibold text-orange-800 flex items-center">
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  Section 3: Batch/Stock ({batches.length} batches)
+                </span>
+                {showBatches ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+              {showBatches && (
+                <div className="p-4 space-y-3">
+                  {batches.length > 0 && (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Batch #</TableHead>
+                          <TableHead>Qty</TableHead>
+                          <TableHead>Expiry</TableHead>
+                          <TableHead>Cost</TableHead>
+                          <TableHead></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {batches.map((batch, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell>{batch.batchNumber}</TableCell>
+                            <TableCell>{batch.quantity}</TableCell>
+                            <TableCell>{batch.expiryDate ? new Date(batch.expiryDate).toLocaleDateString() : '-'}</TableCell>
+                            <TableCell>{formatCurrency(parseFloat(batch.costPrice))}</TableCell>
+                            <TableCell><Button type="button" variant="ghost" size="sm" onClick={() => removeBatch(idx)}><X className="h-4 w-4 text-red-500" /></Button></TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                  <div className="flex gap-2 items-end flex-wrap">
+                    <div className="flex-1 min-w-28"><Label className="text-xs">Batch #</Label><Input placeholder="BATCH-001" value={newBatch.batchNumber} onChange={(e) => setNewBatch({ ...newBatch, batchNumber: e.target.value })} /></div>
+                    <div className="w-20"><Label className="text-xs">Qty</Label><Input type="number" placeholder="100" value={newBatch.quantity} onChange={(e) => setNewBatch({ ...newBatch, quantity: e.target.value })} /></div>
+                    <div className="w-32"><Label className="text-xs">Expiry</Label><Input type="date" value={newBatch.expiryDate} onChange={(e) => setNewBatch({ ...newBatch, expiryDate: e.target.value })} /></div>
+                    <div className="w-24"><Label className="text-xs">Cost</Label><Input type="number" placeholder={formData.costPrice} value={newBatch.costPrice} onChange={(e) => setNewBatch({ ...newBatch, costPrice: e.target.value })} /></div>
+                    <Button type="button" onClick={addBatch} size="sm"><Plus className="h-4 w-4" /></Button>
+                  </div>
+                  {batches.length > 0 && (
+                    <div className="p-2 bg-orange-100 rounded text-sm text-orange-800">
+                      <strong>Total from batches:</strong> {batches.reduce((sum, b) => sum + (parseInt(b.quantity) || 0), 0)} {formData.unitOfMeasure}s
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4 border-t">
+              <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+              <Button type="submit" disabled={isLoading}>{isLoading ? "Saving..." : "Save Changes"}</Button>
             </div>
           </form>
         </CardContent>
