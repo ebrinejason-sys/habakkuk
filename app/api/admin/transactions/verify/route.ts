@@ -153,17 +153,19 @@ export async function GET(request: NextRequest) {
     )
 
     for (const adjustment of stockAdjustments) {
-      const match = adjustment.reason.match(/Sale - Transaction (TXN-\d+)/)
-      if (match) {
-        const transactionNo = match[1]
-        if (!transactionMap.has(transactionNo)) {
-          report.issues.invalidStockAdjustments.push({
-            adjustmentId: adjustment.id,
-            transactionNo,
-            productId: adjustment.productId,
-            quantity: adjustment.quantity,
-            reason: "Transaction referenced in stock adjustment does not exist",
-          })
+      if (adjustment.reason) {
+        const match = adjustment.reason.match(/Sale - Transaction (TXN-\d+)/)
+        if (match) {
+          const transactionNo = match[1]
+          if (!transactionMap.has(transactionNo)) {
+            report.issues.invalidStockAdjustments.push({
+              adjustmentId: adjustment.id,
+              transactionNo,
+              productId: adjustment.productId,
+              quantity: adjustment.quantity,
+              reason: "Transaction referenced in stock adjustment does not exist",
+            })
+          }
         }
       }
     }
@@ -174,16 +176,18 @@ export async function GET(request: NextRequest) {
     )
 
     for (const item of itemsWithBatchIds) {
-      const batch = await prisma.productBatch.findUnique({
-        where: { id: item.batchId },
-      })
-      if (!batch) {
-        report.issues.missingBatchReferences.push({
-          itemId: item.id,
-          batchId: item.batchId,
-          transactionId: item.transactionId,
-          reason: "Batch was deleted or ID is invalid",
+      if (item.batchId) {
+        const batch = await prisma.productBatch.findUnique({
+          where: { id: item.batchId },
         })
+        if (!batch) {
+          report.issues.missingBatchReferences.push({
+            itemId: item.id,
+            batchId: item.batchId,
+            transactionId: item.transactionId,
+            reason: "Batch was deleted or ID is invalid",
+          })
+        }
       }
     }
 
@@ -264,10 +268,14 @@ export async function POST(request: NextRequest) {
     const { action } = await request.json()
 
     if (action === "cleanup-orphaned-items") {
-      // Find and delete orphaned transaction items
+      // Find and delete orphaned transaction items - those without a valid transaction
       const orphanedItems = await prisma.transactionItem.findMany({
         where: {
-          transaction: null,
+          transactionId: {
+            notIn: await prisma.transaction.findMany({
+              select: { id: true },
+            }).then(ts => ts.map(t => t.id))
+          },
         },
       })
 
