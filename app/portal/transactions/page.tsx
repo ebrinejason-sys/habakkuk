@@ -85,6 +85,10 @@ export default function TransactionsPage() {
   const [editReason, setEditReason] = useState("")
   const [isSaving, setIsSaving] = useState(false)
 
+  // Delete transaction state
+  const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
   // Check if current user is admin
   const isAdmin = session?.user?.role === "ADMIN"
 
@@ -178,6 +182,32 @@ export default function TransactionsPage() {
       alert("An error occurred while resetting transactions")
     } finally {
       setIsResetting(false)
+    }
+  }
+
+  const handleDeleteTransaction = async () => {
+    if (!transactionToDelete) return
+
+    setIsDeleting(true)
+    try {
+      const response = await fetch(`/api/admin/transactions/${transactionToDelete.id}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        alert(`Transaction ${transactionToDelete.transactionNo} has been successfully deleted. Stock levels have been restored.`)
+        setTransactionToDelete(null)
+        fetchTransactions()
+      } else {
+        const error = await response.json()
+        alert(`Error: ${error.error || "Failed to delete transaction"}`)
+      }
+    } catch (error) {
+      console.error("Delete error:", error)
+      alert("An error occurred while deleting the transaction")
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -754,6 +784,17 @@ export default function TransactionsPage() {
                       >
                         <Printer className="h-4 w-4" />
                       </Button>
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setTransactionToDelete(transaction)}
+                          title="Delete Transaction"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -984,6 +1025,77 @@ export default function TransactionsPage() {
                   className="bg-amber-600 hover:bg-amber-700"
                 >
                   {isSaving ? "Saving..." : "Save Changes & Notify CEO/Admin"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete Transaction Confirmation Modal */}
+      {transactionToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                  <CardTitle className="text-red-600">Delete Transaction</CardTitle>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setTransactionToDelete(null)}
+                  disabled={isDeleting}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-sm text-red-800 font-semibold mb-2">
+                  Are you sure you want to delete this transaction?
+                </p>
+                <div className="space-y-2 text-sm text-red-700">
+                  <p>
+                    <strong>Transaction:</strong> {transactionToDelete.transactionNo}
+                  </p>
+                  <p>
+                    <strong>Amount:</strong> {formatCurrency(transactionToDelete.netAmount)}
+                  </p>
+                  <p>
+                    <strong>Date:</strong> {new Date(transactionToDelete.createdAt).toLocaleString()}
+                  </p>
+                  <p>
+                    <strong>Cashier:</strong> {transactionToDelete.user.name}
+                  </p>
+                  <p>
+                    <strong>Items:</strong> {transactionToDelete.items.length}
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800">
+                  <strong>Note:</strong> When deleted, stock levels will be automatically restored and all admins will be notified.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setTransactionToDelete(null)}
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteTransaction}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? "Deleting..." : "Delete Transaction"}
                 </Button>
               </div>
             </CardContent>
