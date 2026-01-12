@@ -10,9 +10,10 @@ import { authOptions } from "../../../auth/[...nextauth]/route"
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const session = await getServerSession(authOptions)
 
     if (!session) {
@@ -27,7 +28,7 @@ export async function DELETE(
       )
     }
 
-    const transactionId = params.id
+    const transactionId = id
 
     // Fetch the transaction with all its items
     const transaction = await prisma.transaction.findUnique({
