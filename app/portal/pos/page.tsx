@@ -111,6 +111,9 @@ export default function POSPage() {
   const [showStaffDialog, setShowStaffDialog] = useState(false)
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([])
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null)
+  const [showPrintPrompt, setShowPrintPrompt] = useState(false)
+  const [pendingTransaction, setPendingTransaction] = useState<any>(null)
+  const [receiptStaffNamePending, setReceiptStaffNamePending] = useState<string>("")
   const { toast } = useToast()
 
   // Debounce search query for better performance
@@ -376,15 +379,18 @@ export default function POSPage() {
       const data = await response.json()
 
       if (response.ok) {
+        // Transaction successfully recorded to database
         toast({
           title: "Success",
           description: "Transaction completed successfully",
         })
 
-        // Print receipt with correct staff name
-        printReceipt(data.transaction, receiptStaffName)
+        // Store the transaction for potential printing and show print prompt
+        setPendingTransaction(data.transaction)
+        setReceiptStaffNamePending(receiptStaffName)
+        setShowPrintPrompt(true)
 
-        // Clear cart and localStorage
+        // Clear cart and localStorage immediately after successful recording
         setCart([])
         localStorage.removeItem('pos-cart')
 
@@ -412,6 +418,16 @@ export default function POSPage() {
     } finally {
       setIsProcessing(false)
     }
+  }
+
+  const handlePrintPromptResponse = (shouldPrint: boolean) => {
+    if (shouldPrint && pendingTransaction) {
+      printReceipt(pendingTransaction, receiptStaffNamePending)
+    }
+    // Clear the pending transaction data
+    setPendingTransaction(null)
+    setReceiptStaffNamePending("")
+    setShowPrintPrompt(false)
   }
 
   const printReceipt = (transaction: any, receiptStaffName: string) => {
@@ -839,6 +855,40 @@ export default function POSPage() {
           staffName={staffName}
           onClose={() => setShowReceiptPreview(false)}
         />
+      )}
+
+      {showPrintPrompt && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-sm">
+            <CardHeader>
+              <CardTitle>Print Receipt?</CardTitle>
+              <p className="text-sm text-gray-500 mt-2">Your sale has been recorded successfully. Would you like to print the receipt?</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800">
+                  <strong>Important:</strong> The transaction has already been saved to the system regardless of your choice.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => handlePrintPromptResponse(false)}
+                >
+                  Skip Printing
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={() => handlePrintPromptResponse(true)}
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print Receipt
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
