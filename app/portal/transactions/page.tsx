@@ -92,6 +92,9 @@ export default function TransactionsPage() {
   // Check if current user is admin
   const isAdmin = session?.user?.role === "ADMIN"
 
+  // Check if current user can view profit (Admin or CEO only)
+  const canViewProfit = session?.user?.role === "ADMIN" || session?.user?.role === "CEO"
+
   // Filter states
   const [cashierFilter, setCashierFilter] = useState("")
   const [paymentFilter, setPaymentFilter] = useState("")
@@ -610,9 +613,11 @@ export default function TransactionsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats.today)}</div>
-            <p className="text-xs text-green-600 mt-1">
-              Profit: {formatCurrency(stats.todayProfit)}
-            </p>
+            {canViewProfit && (
+              <p className="text-xs text-green-600 mt-1">
+                Profit: {formatCurrency(stats.todayProfit)}
+              </p>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -622,9 +627,11 @@ export default function TransactionsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats.week)}</div>
-            <p className="text-xs text-green-600 mt-1">
-              Profit: {formatCurrency(stats.weekProfit)}
-            </p>
+            {canViewProfit && (
+              <p className="text-xs text-green-600 mt-1">
+                Profit: {formatCurrency(stats.weekProfit)}
+              </p>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -634,9 +641,11 @@ export default function TransactionsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats.month)}</div>
-            <p className="text-xs text-green-600 mt-1">
-              Profit: {formatCurrency(stats.monthProfit)}
-            </p>
+            {canViewProfit && (
+              <p className="text-xs text-green-600 mt-1">
+                Profit: {formatCurrency(stats.monthProfit)}
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -727,7 +736,7 @@ export default function TransactionsPage() {
                 <TableHead>Cashier</TableHead>
                 <TableHead>Payment Method</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="text-right">Profit</TableHead>
+                {canViewProfit && <TableHead className="text-right">Profit</TableHead>}
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -754,9 +763,11 @@ export default function TransactionsPage() {
                   <TableCell className="text-right font-semibold">
                     {formatCurrency(transaction.netAmount)}
                   </TableCell>
-                  <TableCell className="text-right text-green-600 font-semibold">
-                    {formatCurrency(calculateProfit(transaction))}
-                  </TableCell>
+                  {canViewProfit && (
+                    <TableCell className="text-right text-green-600 font-semibold">
+                      {formatCurrency(calculateProfit(transaction))}
+                    </TableCell>
+                  )}
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Button
