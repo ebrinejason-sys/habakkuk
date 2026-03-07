@@ -97,8 +97,8 @@ export async function POST(request: NextRequest) {
           OR: [
             { role: "ADMIN" },
             { role: "CEO" },
-            { role: "STAFF", permissions: { has: "CLAIM_ORDERS" as any } },
-            { role: "STAFF", permissions: { has: "MANAGE_POS" } },
+            { role: "STAFF", permissions: { has: "CLAIM_ORDERS" } as any },
+            { role: "STAFF", permissions: { has: "MANAGE_POS" } as any },
           ],
         },
       })

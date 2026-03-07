@@ -4,13 +4,13 @@ import { useSession, signOut } from "next-auth/react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { 
-  LayoutDashboard, 
-  Users, 
-  Package, 
-  ShoppingCart, 
-  DollarSign, 
-  Settings, 
+import {
+  LayoutDashboard,
+  Users,
+  Package,
+  ShoppingCart,
+  DollarSign,
+  Settings,
   LogOut,
   Menu,
   X,
@@ -22,11 +22,13 @@ import {
   Truck,
   FileText,
   BarChart3,
-  RotateCcw
+  RotateCcw,
+  Wifi,
+  WifiOff
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { NotificationBell } from "@/components/ui/notification-bell"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 
 // Force dynamic rendering
@@ -40,6 +42,39 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const { data: session } = useSession()
   const pathname = usePathname()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [isOnline, setIsOnline] = useState(true)
+  const [syncStatus, setSyncStatus] = useState<{ pending: number; lastSync: string | null }>({ pending: 0, lastSync: null })
+
+  useEffect(() => {
+    setIsOnline(navigator.onLine)
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  // Poll sync status every 15 seconds (desktop mode only)
+  useEffect(() => {
+    const fetchSyncStatus = async () => {
+      try {
+        const res = await fetch('/api/sync/status')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.isDesktop) {
+            setSyncStatus({ pending: data.pending, lastSync: data.lastSync })
+          }
+        }
+      } catch { /* ignore */ }
+    }
+    fetchSyncStatus()
+    const interval = setInterval(fetchSyncStatus, 15000)
+    return () => clearInterval(interval)
+  }, [])
+
 
   const navigation = [
     { name: "Dashboard", href: "/portal/dashboard", icon: LayoutDashboard },
@@ -74,7 +109,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     <div className="min-h-screen bg-gray-50">
       {/* Mobile sidebar backdrop */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
@@ -202,6 +237,30 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
           {/* Right - Notification bell and user info */}
           <div className="flex items-center space-x-2 sm:space-x-4">
+
+            {/* Online/Offline + Sync Status */}
+            <div className="hidden sm:flex items-center gap-1.5">
+              <div className={cn(
+                "flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-medium border",
+                isOnline
+                  ? "bg-green-50 text-green-700 border-green-200"
+                  : "bg-amber-50 text-amber-700 border-amber-200"
+              )}>
+                {isOnline ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+                <span>{isOnline ? "Online" : "Offline"}</span>
+              </div>
+              {syncStatus.pending > 0 && (
+                <div className="flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-medium border bg-blue-50 text-blue-700 border-blue-200">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                  </span>
+                  <span>{syncStatus.pending} pending sync</span>
+                </div>
+              )}
+            </div>
+
+
             <NotificationBell />
             <div className="hidden md:flex flex-col items-end">
               <span className="text-sm font-medium text-gray-700">{session?.user.name}</span>

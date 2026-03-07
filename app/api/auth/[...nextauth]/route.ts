@@ -3,6 +3,17 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 
+/**
+ * Normalises the permissions field so it works with both backends:
+ * - PostgreSQL: array of Permission enum values  →  returned as-is
+ * - SQLite:     comma-separated string            →  split into array
+ */
+function parsePermissions(raw: any): string[] {
+  if (Array.isArray(raw)) return raw as string[]
+  if (typeof raw === "string") return raw ? raw.split(",").filter(Boolean) : []
+  return []
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -11,16 +22,17 @@ export const authOptions: NextAuthOptions = {
         identifier: { label: "Email or Username", type: "text" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      async authorize(credentials): Promise<any> {
         if (!credentials?.identifier || !credentials?.password) {
           throw new Error("Invalid credentials")
         }
 
         const identifier = credentials.identifier.trim().toLowerCase()
-        
+
         // Check if identifier is email or username
         const isEmail = identifier.includes("@")
-        
+
         let user
         if (isEmail) {
           user = await prisma.user.findUnique({
@@ -45,8 +57,8 @@ export const authOptions: NextAuthOptions = {
               id: user.id,
               email: user.email,
               name: user.name,
-              role: user.role,
-              permissions: user.permissions,
+              role: user.role as string,
+              permissions: parsePermissions(user.permissions),
               mustChangePassword: user.mustChangePassword,
             }
           }
@@ -66,8 +78,8 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           email: user.email,
           name: user.name,
-          role: user.role,
-          permissions: user.permissions,
+          role: user.role as string,
+          permissions: parsePermissions(user.permissions),
           mustChangePassword: user.mustChangePassword,
         }
       }
@@ -86,7 +98,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string
-        
+
         // Fetch fresh user data from database to get updated permissions
         const freshUser = await prisma.user.findUnique({
           where: { id: token.id as string },
@@ -96,15 +108,15 @@ export const authOptions: NextAuthOptions = {
             mustChangePassword: true,
           }
         })
-        
+
         if (freshUser) {
-          session.user.role = freshUser.role
-          session.user.permissions = freshUser.permissions
+          session.user.role = freshUser.role as string
+          session.user.permissions = parsePermissions(freshUser.permissions)
           session.user.mustChangePassword = freshUser.mustChangePassword
         } else {
           // Fallback to token values if user not found
           session.user.role = token.role
-          session.user.permissions = token.permissions
+          session.user.permissions = parsePermissions(token.permissions)
           session.user.mustChangePassword = token.mustChangePassword
         }
       }

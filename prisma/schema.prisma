@@ -442,3 +442,41 @@ model TransactionEdit {
   
   @@map("transaction_edits")
 }
+
+// ── Sync Infrastructure ──────────────────────────────────────────────────────
+
+model SyncQueue {
+  id         String      @id @default(cuid())
+  action     SyncAction
+  entityType String
+  entityId   String
+  payload    String      // JSON payload of the record
+  status     SyncStatus  @default(PENDING)
+  error      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@map("sync_queue")
+}
+
+model SyncLog {
+  id         String   @id @default(cuid())
+  lastSyncAt DateTime @default(now())
+  status     String   // SUCCESS | ERROR
+  details    String?
+
+  @@map("sync_logs")
+}
+
+enum SyncAction {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+enum SyncStatus {
+  PENDING
+  PROCESSING
+  SYNCED
+  ERROR
+}
