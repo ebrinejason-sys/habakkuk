@@ -255,7 +255,7 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * Cleanup orphaned records (Admin only)
+ * Handle transaction verification and cleanup operations (Admin only)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -265,77 +265,73 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Admin only" }, { status: 403 })
     }
 
-    const { action } = await request.json()
+    const body = await request.json()
+    const { action, id } = body
 
-    if (action === "cleanup-orphaned-items") {
-      // Find and delete orphaned transaction items - those without a valid transaction
-      const orphanedItems = await prisma.transactionItem.findMany({
-        where: {
-          transactionId: {
-            notIn: await prisma.transaction.findMany({
-              select: { id: true },
-            }).then((ts: any) => ts.map((t: any) => t.id))
+    // Handle cleanup operations
+    if (action) {
+      if (action === "cleanup-orphaned-items") {
+        // Find and delete orphaned transaction items - those without a valid transaction
+        const orphanedItems = await prisma.transactionItem.findMany({
+          where: {
+            transactionId: {
+              notIn: await prisma.transaction.findMany({
+                select: { id: true },
+              }).then((ts: any) => ts.map((t: any) => t.id))
+            },
           },
-        },
-      })
+        })
 
-      if (orphanedItems.length === 0) {
+        if (orphanedItems.length === 0) {
+          return NextResponse.json({
+            success: true,
+            message: "No orphaned items found",
+            cleaned: 0,
+          })
+        }
+
+        const deleted = await prisma.transactionItem.deleteMany({
+          where: {
+            id: { in: orphanedItems.map((item: any) => item.id) },
+          },
+        })
+
+        // Create audit log
+        await prisma.auditLog.create({
+          data: {
+            userId: session.user.id,
+            action: "CLEANUP_ORPHANED_TRANSACTION_ITEMS",
+            entity: "TRANSACTION",
+            details: `Cleaned up ${deleted.count} orphaned transaction items`,
+          },
+        })
+
         return NextResponse.json({
           success: true,
-          message: "No orphaned items found",
-          cleaned: 0,
+          message: `Cleaned up ${deleted.count} orphaned transaction items`,
+          cleaned: deleted.count,
         })
       }
 
-      const deleted = await prisma.transactionItem.deleteMany({
-        where: {
-          id: { in: orphanedItems.map((item: any) => item.id) },
-        },
-      })
-
-      // Create audit log
-      await prisma.auditLog.create({
-        data: {
-          userId: session.user.id,
-          action: "CLEANUP_ORPHANED_TRANSACTION_ITEMS",
-          entity: "TRANSACTION",
-          details: `Cleaned up ${deleted.count} orphaned transaction items`,
-        },
-      })
-
-      return NextResponse.json({
-        success: true,
-        message: `Cleaned up ${deleted.count} orphaned transaction items`,
-        cleaned: deleted.count,
-      })
+      return NextResponse.json({ error: "Invalid action" }, { status: 400 })
     }
 
-    return NextResponse.json({ error: "Invalid action" }, { status: 400 })
+    // Handle transaction verification
+    if (id) {
+      const transaction = await prisma.transaction.findUnique({ where: { id } })
+      if (!transaction) return NextResponse.json({ error: 'Transaction not found' }, { status: 404 })
+
+      // Verification logic
+      await prisma.transaction.update({ where: { id }, data: { verified: true } })
+      return NextResponse.json({ success: true, message: 'Transaction verified successfully' })
+    }
+
+    return NextResponse.json({ error: 'Either action or transaction ID required' }, { status: 400 })
   } catch (error) {
-    console.error("Cleanup error:", error)
+    console.error('Operation error:', error)
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
     )
-  }
-}
-
-/**
- * Verify a specific transaction (any user)
- */
-export async function POST(request: Request) {
-  try {
-    const { id } = await request.json();
-    if (!id) return NextResponse.json({ error: 'Transaction ID required' }, { status: 400 });
-
-    const transaction = await prisma.transaction.findUnique({ where: { id } });
-    if (!transaction) return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
-
-    // Verification logic
-    await prisma.transaction.update({ where: { id }, data: { verified: true } });
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Verification error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
