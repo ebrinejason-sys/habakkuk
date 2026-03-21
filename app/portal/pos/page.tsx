@@ -388,7 +388,16 @@ export default function POSPage() {
 
     if (!navigator.onLine) {
       // Offline: Store locally and queue for sync
-      const db = await dbPromise;
+      const db = await getDBPromise();
+      if (!db) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Unable to access offline storage",
+        });
+        setIsProcessing(false);
+        return;
+      }
       const id = Date.now().toString(); // Simple ID for offline
       await db.add('transactions', { id, ...transactionPayload, synced: false });
       navigator.serviceWorker.ready.then((sw) => sw.sync.register('sync-transactions'));
@@ -1602,16 +1611,27 @@ function TransactionReceipt({
   )
 }
 
-const dbPromise = openDB('habakkuk-offline', 1, {
-  upgrade(db) {
-    db.createObjectStore('transactions', { keyPath: 'id' });
-  },
-});
+let dbPromise: any = null;
+
+const getDBPromise = async () => {
+  if (typeof window === 'undefined') return null;
+  
+  if (!dbPromise) {
+    dbPromise = openDB('habakkuk-offline', 1, {
+      upgrade(db) {
+        db.createObjectStore('transactions', { keyPath: 'id' });
+      },
+    });
+  }
+  
+  return dbPromise;
+};
 
 const handleTransaction = async () => {
   const transactionData = { /* ... */ };
   if (!navigator.onLine) {
-    const db = await dbPromise;
+    const db = await getDBPromise();
+    if (!db) return;
     await db.add('transactions', transactionData);
     // Register sync
     navigator.serviceWorker.ready.then((sw) => sw.sync.register('sync-transactions'));
