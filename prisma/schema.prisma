@@ -204,6 +204,22 @@ model Customer {
   @@map("customers")
 }
 
+model Client {
+  id              String   @id @default(cuid())
+  name            String
+  phone           String?
+  address         String?
+  notes           String?
+  lastVisit       DateTime?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("clients")
+  
+  @@index([name])
+}
+
 model Supplier {
   id              String   @id @default(cuid())
   name            String

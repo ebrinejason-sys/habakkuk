@@ -973,11 +973,11 @@ function TransactionReceipt({
   const grandTotal = typeof transaction.netAmount === "number" ? transaction.netAmount : subtotal + taxAmount
 
   return (
-    <div className="mx-auto max-w-[210mm] text-black">
-      <div className="border border-black p-4 bg-white text-black relative">
+    <div className="mx-auto max-w-[210mm] text-black" style={{ width: '210mm', padding: '20mm', backgroundColor: 'white', color: 'black' }}>
+      <div className="border border-black p-4 bg-white text-black relative" style={{ borderWidth: '1px', borderColor: 'black' }}>
         {transaction.isEdited && (
-          <div className="mb-2 border-2 border-amber-500 bg-amber-100 text-amber-900 text-center font-bold py-2">
-            EDITED RECEIPT
+          <div className="mb-2 border-2 border-black text-center font-bold py-2">
+            *** EDITED RECEIPT ***
           </div>
         )}
 
@@ -1031,7 +1031,7 @@ function TransactionReceipt({
         <div className="mb-2">
           <table className="w-full text-[10px]">
             <thead>
-              <tr className="bg-black text-white">
+              <tr style={{ backgroundColor: 'black', color: 'white' }}>
                 <th className="text-left py-1 px-2 font-medium">Item</th>
                 <th className="text-center py-1 px-1 font-medium">Qty</th>
                 <th className="text-right py-1 px-1 font-medium">Price</th>
@@ -1040,11 +1040,11 @@ function TransactionReceipt({
             </thead>
             <tbody>
               {transaction.items.map((item) => (
-                <tr key={item.id} className="border-b border-gray-300">
+                <tr key={item.id} style={{ borderBottom: '1px solid black' }}>
                   <td className="py-1 px-2">
                     <span className="font-medium text-[10px]">{item.product.name}</span>
-                    {item.product.sku && <span className="text-[8px] text-gray-600 block">{item.product.sku}</span>}
-                    {item.product.expiryDate && <span className="text-[8px] text-gray-600 block">Exp: {new Date(item.product.expiryDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</span>}
+                    {item.product.sku && <span className="text-[8px] block">{item.product.sku}</span>}
+                    {item.product.expiryDate && <span className="text-[8px] block">Exp: {new Date(item.product.expiryDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</span>}
                   </td>
                   <td className="text-center py-1 px-1">{item.quantity}</td>
                   <td className="text-right py-1 px-1">{formatCurrency(item.unitPrice, currency)}</td>
@@ -1055,7 +1055,7 @@ function TransactionReceipt({
           </table>
         </div>
 
-        <div className="border-t border-dashed border-black pt-2">
+        <div style={{ borderTop: '1px dashed black', paddingTop: '8px' }}>
           <div className="max-w-[170px] ml-auto space-y-0.5 text-[10px]">
             <div className="flex justify-between">
               <span>Subtotal</span>
@@ -1067,7 +1067,7 @@ function TransactionReceipt({
                 <span>{formatCurrency(taxAmount, currency)}</span>
               </div>
             )}
-            <div className="flex justify-between text-sm font-bold border-t-2 border-black pt-1 mt-1">
+            <div className="flex justify-between text-sm font-bold" style={{ borderTop: '2px solid black', paddingTop: '4px', marginTop: '4px' }}>
               <span>TOTAL</span>
               <span>{formatCurrency(grandTotal, currency)}</span>
             </div>
@@ -1081,7 +1081,7 @@ function TransactionReceipt({
           </div>
         </div>
 
-        <div className="text-center border-t border-dashed border-black pt-2 mt-2 space-y-1">
+        <div className="text-center" style={{ borderTop: '1px dashed black', paddingTop: '8px', marginTop: '8px', space: '4px' }}>
           <p className="font-semibold text-[10px]">Served by: {transaction.user.name}</p>
           <p className="text-[10px]">{footerText}</p>
           <p className="text-[8px]">Keep this receipt for your records</p>
