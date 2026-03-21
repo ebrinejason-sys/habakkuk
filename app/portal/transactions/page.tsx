@@ -1081,7 +1081,7 @@ function TransactionReceipt({
           </div>
         </div>
 
-        <div className="text-center" style={{ borderTop: '1px dashed black', paddingTop: '8px', marginTop: '8px', space: '4px' }}>
+        <div className="text-center" style={{ borderTop: '1px dashed black', paddingTop: '8px', marginTop: '8px' }}>
           <p className="font-semibold text-[10px]">Served by: {transaction.user.name}</p>
           <p className="text-[10px]">{footerText}</p>
           <p className="text-[8px]">Keep this receipt for your records</p>

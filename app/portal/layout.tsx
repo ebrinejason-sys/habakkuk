@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button"
 import { NotificationBell } from "@/components/ui/notification-bell"
 import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
+import { getPendingActions } from "@/lib/offlineStorage"
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -57,18 +58,34 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     }
   }, [])
 
-  // Poll sync status every 15 seconds (desktop mode only)
+  // Poll sync status every 15 seconds (desktop and web)
   useEffect(() => {
     const fetchSyncStatus = async () => {
+      let desktopPending = 0;
+      let lastSync = null;
+
       try {
         const res = await fetch('/api/sync/status')
         if (res.ok) {
           const data = await res.json()
           if (data.isDesktop) {
-            setSyncStatus({ pending: data.pending, lastSync: data.lastSync })
+            desktopPending = data.pending;
+            lastSync = data.lastSync;
           }
         }
       } catch { /* ignore */ }
+
+      // Also check Web IndexedDB for pending transactions
+      let webPending = 0;
+      try {
+        const pending = await getPendingActions();
+        webPending = pending.length;
+      } catch { /* ignore */ }
+
+      setSyncStatus({
+        pending: desktopPending + webPending,
+        lastSync
+      });
     }
     fetchSyncStatus()
     const interval = setInterval(fetchSyncStatus, 15000)

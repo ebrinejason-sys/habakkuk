@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search")
     const limit = parseInt(searchParams.get("limit") || "10")
 
-    let where = { isActive: true }
+    let where: any = { isActive: true }
     
     if (search && search.trim()) {
       where = {

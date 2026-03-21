@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
 import { Plus, Search, Edit, Trash2, Loader2, User } from "lucide-react"
+import { resilientFetch } from "@/lib/api"
 
 interface Customer {
   id: string
@@ -52,7 +53,7 @@ export default function CustomersPage() {
 
   const fetchCustomers = async () => {
     try {
-      const response = await fetch("/api/admin/customers")
+      const response = await resilientFetch("/api/admin/customers")
       const data = await response.json()
       setCustomers(data)
       setFilteredCustomers(data)
@@ -78,7 +79,7 @@ export default function CustomersPage() {
     }
 
     try {
-      const response = await fetch(`/api/admin/customers?id=${customerId}`, {
+      const response = await resilientFetch(`/api/admin/customers?id=${customerId}`, {
         method: "DELETE",
       })
 
@@ -230,7 +231,7 @@ function CreateCustomerDialog({ onClose, onSuccess }: CreateCustomerDialogProps)
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/admin/customers", {
+      const response = await resilientFetch("/api/admin/customers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -345,7 +346,7 @@ function EditCustomerDialog({ customer, onClose, onSuccess }: EditCustomerDialog
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/admin/customers", {
+      const response = await resilientFetch("/api/admin/customers", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: customer.id, ...formData }),

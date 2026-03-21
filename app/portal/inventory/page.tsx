@@ -22,6 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast"
 import { Plus, Upload, Search, Edit, AlertTriangle, Package, PackagePlus, X, ChevronDown, ChevronUp } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { resilientFetch } from "@/lib/api"
 
 interface ProductPackage {
   id?: string
@@ -112,7 +113,7 @@ export default function InventoryPage() {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch("/api/admin/inventory")
+      const response = await resilientFetch("/api/admin/inventory")
       const data = await response.json()
       if (Array.isArray(data)) {
         setProducts(data)
@@ -509,7 +510,7 @@ function CreateProductDialog({ onClose, onSuccess }: CreateProductDialogProps) {
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/admin/inventory", {
+      const response = await resilientFetch("/api/admin/inventory", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -810,7 +811,7 @@ function BulkUploadDialog({ onClose, onSuccess }: CreateProductDialogProps) {
     formData.append("file", file)
 
     try {
-      const response = await fetch("/api/admin/inventory/bulk-upload", {
+      const response = await resilientFetch("/api/admin/inventory/bulk-upload", {
         method: "POST",
         body: formData,
       })
@@ -1051,7 +1052,7 @@ function EditProductDialog({ product, onClose, onSuccess }: EditProductDialogPro
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/admin/inventory", {
+      const response = await resilientFetch("/api/admin/inventory", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1323,7 +1324,7 @@ function UpdateStockDialog({ products, onClose, onSuccess }: UpdateStockDialogPr
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/admin/inventory/stock", {
+      const response = await resilientFetch("/api/admin/inventory/stock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
