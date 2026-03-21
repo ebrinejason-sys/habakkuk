@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
 
       // Calculate user stats for today
       const userStats = await Promise.all(
-        users.map(async (user) => {
+        users.map(async (user: any) => {
           const [todayTransactions, todayOrders] = await Promise.all([
             prisma.transaction.aggregate({
               _sum: { netAmount: true },

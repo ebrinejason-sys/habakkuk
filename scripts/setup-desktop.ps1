@@ -23,19 +23,22 @@ else {
     Write-Host "[1/5] Dependencies already installed." -ForegroundColor Gray
 }
 
-# Step 2: Activate SQLite schema
+# Step 2: Ensure correct environment vars
 Write-Host ""
-Write-Host "[2/5] Activating SQLite schema..." -ForegroundColor Yellow
-node scripts/use-sqlite-schema.js
-if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: schema switch failed" -ForegroundColor Red; exit 1 }
+Write-Host "[2/5] Checking environment..." -ForegroundColor Yellow
+if (-not (Test-Path ".\.env")) {
+    Write-Host "Creating .env file for desktop mode..." -ForegroundColor Gray
+    "NEXT_PUBLIC_IS_DESKTOP=true" | Out-File -FilePath .\.env -Encoding utf8
+    "DATABASE_URL=file:./dev.db" | Out-File -FilePath .\.env -Encoding utf8 -Append
+}
 Write-Host "  OK" -ForegroundColor Green
 
 # Step 3: Create local SQLite database
 Write-Host ""
 Write-Host "[3/5] Creating local database tables..." -ForegroundColor Yellow
-npx prisma generate
+npx prisma generate --schema=prisma/schema.sqlite.prisma
 if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: prisma generate failed" -ForegroundColor Red; exit 1 }
-npx prisma db push --accept-data-loss
+npx prisma db push --schema=prisma/schema.sqlite.prisma --accept-data-loss
 if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: prisma db push failed" -ForegroundColor Red; exit 1 }
 Write-Host "  OK: SQLite database created at prisma/dev.db" -ForegroundColor Green
 
@@ -45,13 +48,12 @@ Write-Host "[4/5] Syncing data from habakkukpharmacy.com..." -ForegroundColor Ye
 Write-Host "      (Internet required for this step)" -ForegroundColor Gray
 npx tsx scripts/initial-sync.ts
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "  WARN: Initial sync failed (no internet?). Seeding with sample data..." -ForegroundColor Yellow
-    npx tsx prisma/seed.desktop.ts
-    if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: seed failed" -ForegroundColor Red; exit 1 }
-    Write-Host "  OK: Sample data loaded" -ForegroundColor Gray
+    Write-Host "  ERROR: Initial sync failed!" -ForegroundColor Red
+    Write-Host "  Please ensure you have an active internet connection so the desktop app can download your real pharmacy data." -ForegroundColor Yellow
+    exit 1
 }
 else {
-    Write-Host "  OK: Real data imported from cloud!" -ForegroundColor Green
+    Write-Host "  OK: Real data imported from cloud! The database is now ready." -ForegroundColor Green
 }
 
 # Step 5: Done

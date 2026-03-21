@@ -188,7 +188,7 @@ export async function DELETE(request: NextRequest) {
 
     // Delete related records in order (due to foreign key constraints)
     // Use a transaction to ensure all deletions succeed or none
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       // Delete user's notifications
       await tx.notification.deleteMany({
         where: { userId: userId },

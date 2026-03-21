@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
 
       // 7. Validate profit calculation
       const itemsWithCosts = transaction.items.filter(
-        (item) => item.costPrice !== null
+        (item: any) => item.costPrice !== null
       )
       if (itemsWithCosts.length !== transaction.items.length) {
         report.issues.inconsistentProfitData.push({
@@ -149,7 +149,7 @@ export async function GET(request: NextRequest) {
     })
 
     const transactionMap = new Map(
-      allTransactions.map((t) => [t.transactionNo, t])
+      allTransactions.map((t: any) => [t.transactionNo, t])
     )
 
     for (const adjustment of stockAdjustments) {
@@ -172,7 +172,7 @@ export async function GET(request: NextRequest) {
 
     // Check for batch references
     const itemsWithBatchIds = allTransactionItems.filter(
-      (item) => item.batchId !== null
+      (item: any) => item.batchId !== null
     )
 
     for (const item of itemsWithBatchIds) {
@@ -274,7 +274,7 @@ export async function POST(request: NextRequest) {
           transactionId: {
             notIn: await prisma.transaction.findMany({
               select: { id: true },
-            }).then(ts => ts.map(t => t.id))
+            }).then((ts: any) => ts.map((t: any) => t.id))
           },
         },
       })
@@ -289,7 +289,7 @@ export async function POST(request: NextRequest) {
 
       const deleted = await prisma.transactionItem.deleteMany({
         where: {
-          id: { in: orphanedItems.map((item) => item.id) },
+          id: { in: orphanedItems.map((item: any) => item.id) },
         },
       })
 

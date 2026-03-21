@@ -1,0 +1,8 @@
+Habakkuk Pharmacy POS
+Copyright (c) 2025 Habakkuk Pharmacy. All rights reserved.
+
+This software is proprietary and confidential.
+Unauthorized copying, distribution, or use of this software is strictly prohibited.
+
+By installing this software, you agree to use it only for authorized pharmacy 
+operations at Habakkuk Pharmacy locations.

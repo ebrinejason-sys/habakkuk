@@ -4,28 +4,57 @@ const { spawn } = require('child_process');
 const http = require('http');
 const fs = require('fs');
 
+// ── App Configuration ───────────────────────────────────────────────────────
+app.setName('Habakkuk Pharmacy POS');
+
 let mainWindow;
 let splashWindow;
 let nextProcess;
 const PORT = 3001;
 
-// ── Load .env manually (Electron doesn't pick it up automatically) ──────────
+// ── Resolve the app root (works in both dev and packaged mode) ───────────────
+function getUnpackedRoot() {
+    // This points to where Next.js code is (e.g., resources/app)
+    return app.isPackaged ? app.getAppPath() : __dirname;
+}
+
+function getInstallRoot() {
+    // This points to where extraResources are (e.g., next to the .exe)
+    return app.isPackaged ? path.dirname(path.dirname(app.getAppPath())) : __dirname;
+}
+
+function getDatabasePath() {
+    // For packaged apps, store in the system's AppData
+    if (!app.isPackaged) return path.join(__dirname, 'prisma', 'dev.db');
+    return path.join(app.getPath('userData'), 'database', 'dev.db');
+}
+
+// ── Load .env manually ──────────────────────────────────────────────────────
 function loadEnv() {
-    const envPath = path.join(__dirname, '.env');
-    if (!fs.existsSync(envPath)) {
-        console.error('[Desktop] ERROR: .env file not found. Run scripts/setup-desktop.ps1 first.');
-        return;
+    const installRoot = getInstallRoot();
+    const envPath = path.join(installRoot, '.env');
+
+    // Set default desktop flags before loading .env
+    process.env.NEXT_PUBLIC_IS_DESKTOP = 'true';
+
+    if (fs.existsSync(envPath)) {
+        const lines = fs.readFileSync(envPath, 'utf-8').split('\n');
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('#')) continue;
+            const eqIdx = trimmed.indexOf('=');
+            if (eqIdx === -1) continue;
+            const key = trimmed.slice(0, eqIdx).trim();
+            const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, '');
+            if (!process.env[key]) process.env[key] = val;
+        }
     }
-    const lines = fs.readFileSync(envPath, 'utf-8').split('\n');
-    for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith('#')) continue;
-        const eqIdx = trimmed.indexOf('=');
-        if (eqIdx === -1) continue;
-        const key = trimmed.slice(0, eqIdx).trim();
-        const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, '');
-        if (!process.env[key]) process.env[key] = val;
-    }
+
+    // Set DATABASE_URL to exactly where the database is stored
+    const dbPath = getDatabasePath().replace(/\\/g, '/');
+    process.env.DATABASE_URL = `file:///${dbPath}`;
+
+    console.log(`[Desktop] Environment loaded. DB: ${process.env.DATABASE_URL}`);
 }
 
 // ── Splash Window ─────────────────────────────────────────────────────────────
@@ -39,19 +68,29 @@ function createSplashWindow() {
         resizable: false,
         webPreferences: { nodeIntegration: false },
     });
-    splashWindow.loadFile(path.join(__dirname, 'public', 'splash.html'));
+
+    const installRoot = getInstallRoot();
+    const splashPath = path.join(installRoot, 'public', 'splash.html');
+    if (fs.existsSync(splashPath)) {
+        splashWindow.loadFile(splashPath);
+    } else {
+        splashWindow.loadURL('data:text/html,<html><body style="display:flex;justify-content:center;align-items:center;height:100%;background:#1a1a2e;color:white;font-family:sans-serif;"><h2>Loading Habakkuk Pharmacy...</h2></body></html>');
+    }
     splashWindow.center();
 }
 
 // ── Main Window ───────────────────────────────────────────────────────────────
 function createMainWindow() {
+    const installRoot = getInstallRoot();
+    const iconPath = path.join(installRoot, 'public', 'logo.png');
+
     mainWindow = new BrowserWindow({
         width: 1366,
         height: 768,
         minWidth: 1024,
         minHeight: 600,
-        show: false,  // Show only when Next.js is ready
-        icon: path.join(__dirname, 'public', 'logo.png'),
+        show: false,
+        icon: iconPath,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -64,7 +103,6 @@ function createMainWindow() {
         mainWindow = null;
     });
 
-    // Open external links in browser, not Electron
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
         if (url.startsWith('http')) shell.openExternal(url);
         return { action: 'deny' };
@@ -73,100 +111,119 @@ function createMainWindow() {
 
 // ── Wait for Next.js, then load it ───────────────────────────────────────────
 function waitForNextJs(callback, attempts = 0) {
-    if (attempts > 60) {
-        console.error('[Desktop] Next.js did not start after 60 seconds.');
+    if (attempts > 90) {
+        console.error('[Desktop] Next.js did not start after 90 seconds.');
         app.quit();
         return;
     }
 
     http.get(`http://localhost:${PORT}`, (res) => {
         if (res.statusCode < 500) {
-            // Next.js is up
             callback();
         } else {
             setTimeout(() => waitForNextJs(callback, attempts + 1), 1000);
         }
     }).on('error', () => {
-        // Not ready yet, keep trying
         setTimeout(() => waitForNextJs(callback, attempts + 1), 1000);
     });
 }
 
 // ── Start Next.js Server ─────────────────────────────────────────────────────
 function startNextJsServer() {
+    const unpackedRoot = getUnpackedRoot();
     const env = {
         ...process.env,
         PORT: PORT.toString(),
+        HOSTNAME: '127.0.0.1',
         NEXT_PUBLIC_IS_DESKTOP: 'true',
-        // DATABASE_URL already loaded from .env above
+        ELECTRON_RUN_AS_NODE: '1',
     };
 
-    const serverCommand = app.isPackaged ? 'start' : 'dev';
-    const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+    if (app.isPackaged) {
+        const standaloneDir = path.join(unpackedRoot, '.next', 'standalone');
+        const serverJs = path.join(standaloneDir, 'server.js');
 
-    console.log(`[Desktop] Starting Next.js in '${serverCommand}' mode on port ${PORT}...`);
+        if (!fs.existsSync(serverJs)) {
+            const { dialog } = require('electron');
+            dialog.showErrorBox('Build Error', `Standalone server not found at:\n${serverJs}`);
+            app.quit();
+            return;
+        }
 
-    nextProcess = spawn(npmCmd, ['run', serverCommand], {
-        cwd: __dirname,
-        env,
-        stdio: ['ignore', 'pipe', 'pipe'],
-    });
+        const logPath = path.join(app.getPath('userData'), 'nextjs-error.log');
+        const outStream = fs.createWriteStream(logPath, { flags: 'a' });
 
-    nextProcess.stdout.on('data', (data) => {
-        const msg = data.toString().trim();
-        if (msg) console.log(`[Next.js] ${msg}`);
-    });
-    nextProcess.stderr.on('data', (data) => {
-        const msg = data.toString().trim();
-        if (msg) console.error(`[Next.js ERR] ${msg}`);
-    });
-    nextProcess.on('exit', (code) => {
-        console.log(`[Next.js] Process exited with code ${code}`);
-    });
+        console.log(`[Desktop] Starting Standalone server on port ${PORT}...`);
+
+        nextProcess = spawn(process.execPath, [serverJs], {
+            cwd: standaloneDir,
+            env,
+            stdio: ['ignore', 'pipe', 'pipe'],
+        });
+
+        if (nextProcess.stdout) nextProcess.stdout.pipe(outStream);
+        if (nextProcess.stderr) nextProcess.stderr.pipe(outStream);
+
+        nextProcess.on('error', (err) => {
+            const { dialog } = require('electron');
+            dialog.showErrorBox('Next.js Start Error', err.message);
+        });
+    } else {
+        const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+        nextProcess = spawn(npmCmd, ['run', 'dev'], {
+            cwd: unpackedRoot,
+            env,
+            stdio: ['ignore', 'pipe', 'pipe'],
+            shell: true,
+        });
+    }
+
+    if (nextProcess.stdout) {
+        nextProcess.stdout.on('data', (d) => console.log(`[Next.js] ${d.toString().trim()}`));
+    }
+    if (nextProcess.stderr) {
+        nextProcess.stderr.on('data', (d) => console.error(`[Next.js ERR] ${d.toString().trim()}`));
+    }
 }
 
-// ── Background Sync (every 30s) ───────────────────────────────────────────────
+// ── Background Sync ───────────────────────────────────────────────────────────
 function startSyncWorker() {
     console.log('[Sync] Background sync worker started.');
-
     const doSync = () => {
         http.get(`http://localhost:${PORT}/api/sync/trigger`, (res) => {
-            res.on('data', (d) => {
-                const msg = d.toString().trim();
-                if (msg) console.log('[Sync] Trigger:', msg);
-            });
-        }).on('error', (e) => {
-            console.warn('[Sync] Server not reachable:', e.message);
-        });
+            res.on('data', d => console.log('[Sync] Trigger:', d.toString().trim()));
+        }).on('error', e => console.warn('[Sync] Server unreachable:', e.message));
     };
-
-    // First sync at 8s (first-run will auto-detect and do full pull)
     setTimeout(doSync, 8000);
-    // Then every 30s continuously
     setInterval(doSync, 30000);
 }
 
-// ── App Lifecycle ─────────────────────────────────────────────────────────────
-app.on('ready', () => {
-    loadEnv();
-    checkFirstRun();
-});
-
+// ── Initialization Logic ──────────────────────────────────────────────────────
 function checkFirstRun() {
-    // Check if local DB exists
-    const dbPath = path.join(__dirname, 'prisma', 'dev.db');
+    const dbPath = getDatabasePath();
+    const dbDir = path.dirname(dbPath);
+
+    console.log(`[Desktop] Initializing. DB Target: ${dbPath}`);
+
+    if (!fs.existsSync(dbDir)) {
+        fs.mkdirSync(dbDir, { recursive: true });
+    }
+
     if (!fs.existsSync(dbPath)) {
-        // Show a dialog telling user to run setup
-        const { dialog } = require('electron');
-        dialog.showMessageBoxSync({
-            type: 'warning',
-            title: 'First Run Setup Required',
-            message: 'Local database not found.',
-            detail: 'Please run the setup script first:\n\n  .\\scripts\\setup-desktop.ps1\n\nThen restart the app.',
-            buttons: ['OK'],
-        });
-        app.quit();
-        return;
+        console.log('[Desktop] Database not found. Copying template...');
+        const installRoot = getInstallRoot();
+        const templatePath = path.join(installRoot, 'prisma', 'template.db');
+
+        try {
+            if (fs.existsSync(templatePath)) {
+                fs.copyFileSync(templatePath, dbPath);
+                console.log('[Desktop] Template copied successfully.');
+            } else {
+                console.warn('[Desktop] CRITICAL: Template database not found at', templatePath);
+            }
+        } catch (copyErr) {
+            console.error('[Desktop] Failed to copy template:', copyErr);
+        }
     }
 
     createSplashWindow();
@@ -174,33 +231,54 @@ function checkFirstRun() {
     startNextJsServer();
 
     waitForNextJs(() => {
-        console.log('[Desktop] Next.js is ready. Loading app...');
-        mainWindow.loadURL(`http://localhost:${PORT}`);
+        console.log('[Desktop] Next.js ready. Loading portal...');
+        mainWindow.loadURL(`http://localhost:${PORT}/login`);
 
         mainWindow.once('ready-to-show', () => {
-            if (splashWindow && !splashWindow.isDestroyed()) {
-                splashWindow.close();
-                splashWindow = null;
-            }
+            if (splashWindow && !splashWindow.isDestroyed()) splashWindow.close();
             mainWindow.show();
             mainWindow.focus();
         });
+
+        // Trigger first sync
+        setTimeout(() => {
+            console.log('[Sync] Triggering initial data fetch...');
+            http.get(`http://localhost:${PORT}/api/sync/trigger?full=true`, () => { }).on('error', () => { });
+        }, 10000);
 
         startSyncWorker();
     });
 }
 
-app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') app.quit();
-});
+// ── App Lifecycle ─────────────────────────────────────────────────────────────
+const gotTheLock = app.requestSingleInstanceLock();
 
-app.on('will-quit', () => {
-    if (nextProcess) {
-        console.log('[Desktop] Shutting down Next.js...');
-        if (process.platform === 'win32') {
-            spawn('taskkill', ['/pid', nextProcess.pid, '/f', '/t']);
-        } else {
-            nextProcess.kill('SIGTERM');
+if (!gotTheLock) {
+    app.quit();
+} else {
+    app.on('second-instance', () => {
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.focus();
         }
-    }
-});
+    });
+
+    app.on('ready', () => {
+        loadEnv();
+        checkFirstRun();
+    });
+
+    app.on('window-all-closed', () => {
+        if (process.platform !== 'darwin') app.quit();
+    });
+
+    app.on('will-quit', () => {
+        if (nextProcess) {
+            if (process.platform === 'win32') {
+                spawn('taskkill', ['/pid', nextProcess.pid, '/f', '/t']);
+            } else {
+                nextProcess.kill('SIGTERM');
+            }
+        }
+    });
+}

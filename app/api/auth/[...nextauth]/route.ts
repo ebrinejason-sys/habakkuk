@@ -33,19 +33,51 @@ export const authOptions: NextAuthOptions = {
         // Check if identifier is email or username
         const isEmail = identifier.includes("@")
 
-        let user
+        let user;
         if (isEmail) {
           user = await prisma.user.findUnique({
             where: { email: identifier }
-          })
+          });
         } else {
           user = await prisma.user.findUnique({
             where: { username: identifier }
-          })
+          });
+        }
+
+        // ── Cloud Fallback ──────────────────────────────────────────────────
+        // If user not found locally AND we are in desktop mode, try cloud verification
+        if (!user && process.env.NEXT_PUBLIC_IS_DESKTOP === 'true') {
+          console.log(`[Auth] User ${identifier} not found locally. Trying cloud fallback...`);
+          try {
+            const CLOUD_URL = process.env.SYNC_SERVER_URL || 'https://habakkukpharmacy.com';
+            const cloudResponse = await fetch(`${CLOUD_URL}/api/auth/cloud-verify`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Sync-Key': process.env.SYNC_API_KEY || ''
+              },
+              body: JSON.stringify({ identifier, password: credentials.password }),
+            });
+
+            if (cloudResponse.ok) {
+              const cloudData = await cloudResponse.json();
+              console.log(`[Auth] Cloud verification successful for ${identifier}. Creating local record.`);
+
+              // Create the user locally so they can log in offline next time
+              user = await prisma.user.create({
+                data: {
+                  ...cloudData.user,
+                  password: await bcrypt.hash(credentials.password, 10), // Store hashed password locally
+                }
+              });
+            }
+          } catch (cloudErr) {
+            console.error('[Auth] Cloud fallback failed:', cloudErr);
+          }
         }
 
         if (!user || !user.isActive) {
-          throw new Error("Invalid credentials")
+          throw new Error("Invalid credentials");
         }
 
         // Check if this is a 2FA-verified session (special token passed)

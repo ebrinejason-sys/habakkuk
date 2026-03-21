@@ -235,7 +235,7 @@ export async function PATCH(request: NextRequest) {
     // If completing order, create transaction and update stock (only for customer orders with products)
     if (status === "COMPLETED" && order.orderType === "CUSTOMER") {
       // Get only items with productId
-      const itemsWithProducts = order.items.filter(item => item.productId)
+      const itemsWithProducts = order.items.filter((item: any) => item.productId)
       
       if (itemsWithProducts.length > 0) {
         // Create transaction
@@ -248,7 +248,7 @@ export async function PATCH(request: NextRequest) {
             paymentMethod: "CASH",
             userId: session.user.id,
             items: {
-              create: itemsWithProducts.map((item) => ({
+              create: itemsWithProducts.map((item: any) => ({
                 productId: item.productId!,
                 quantity: item.quantity,
                 unitPrice: item.unitPrice,

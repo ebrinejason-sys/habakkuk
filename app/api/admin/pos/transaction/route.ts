@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { items, paymentMethod, staffId, staffName } = await request.json()
+    const { items, paymentMethod, staffId, staffName, clientName, clientPhone, clientAddress } = await request.json()
 
     if (!items || items.length === 0) {
       return NextResponse.json({ error: "No items in cart" }, { status: 400 })
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     const transactionUserId = staffId || session.user.id
 
     // Perform everything in a single transaction for atomicity
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // Calculate totals and prepare transaction items
       let totalAmount = 0
       const transactionItems: any[] = []
@@ -195,6 +195,9 @@ export async function POST(request: NextRequest) {
         data: {
           transactionNo: generateTransactionNo(),
           userId: transactionUserId,
+          clientName: clientName || null,
+          clientPhone: clientPhone || null,
+          clientAddress: clientAddress || null,
           totalAmount,
           tax,
           netAmount,

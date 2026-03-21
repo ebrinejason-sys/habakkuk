@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { runSync } from "@/lib/syncClient";
 
-export async function GET() {
+export async function GET(req: Request) {
     if (process.env.NEXT_PUBLIC_IS_DESKTOP !== "true") {
         return NextResponse.json({ message: "Not in desktop mode" });
     }
 
-    // Fire and forget the sync
-    runSync();
+    const { searchParams } = new URL(req.url);
+    const forceFull = searchParams.get("full") === "true";
 
-    return NextResponse.json({ message: "Sync triggered" });
+    // Fire and forget the sync
+    runSync({ forceFull });
+
+    return NextResponse.json({ message: "Sync triggered", forceFull });
 }
