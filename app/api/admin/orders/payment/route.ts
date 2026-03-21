@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
         userId: session.user.id,
         items: {
           create: order.items
-            .filter(item => item.productId)
+            .filter((item: any) => item.productId)
             .map((item: { productId: string | null; quantity: number; unitPrice: number; totalPrice: number }) => ({
               productId: item.productId!,
               quantity: item.quantity,

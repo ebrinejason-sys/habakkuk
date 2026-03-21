@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
 
     // Send email to supplier if requested
     if (sendEmailToSupplier && supplier.email) {
-      const itemsTable = purchaseOrder.items.map(item => 
+      const itemsTable = purchaseOrder.items.map((item: any) => 
         `<tr>
           <td style="padding: 10px; border: 1px solid #ddd;">${item.productName}</td>
           <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">${item.quantity}</td>
@@ -279,7 +279,7 @@ export async function PATCH(request: NextRequest) {
 
     // Send email if requested and not already sent
     if (shouldSendEmail && !purchaseOrder.emailSent && purchaseOrder.supplier.email) {
-      const itemsTable = purchaseOrder.items.map(item => 
+      const itemsTable = purchaseOrder.items.map((item: any) => 
         `<tr>
           <td style="padding: 10px; border: 1px solid #ddd;">${item.productName}</td>
           <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">${item.quantity}</td>
@@ -391,7 +391,7 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       await tx.purchaseOrderItem.deleteMany({
         where: { purchaseOrderId: id }
       })

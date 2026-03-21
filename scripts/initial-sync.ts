@@ -13,36 +13,11 @@
  *   - Internet connection
  */
 
-import { PrismaClient } from "@prisma/client";
-import * as fs from "fs";
-import * as path from "path";
-
-// Load .env manually (this runs outside Next.js context)
-function loadEnv() {
-    const envPath = path.join(process.cwd(), ".env");
-    if (!fs.existsSync(envPath)) {
-        console.error("ERROR: .env file not found. Cannot proceed.");
-        process.exit(1);
-    }
-    const lines = fs.readFileSync(envPath, "utf-8").split("\n");
-    for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith("#")) continue;
-        const eqIdx = trimmed.indexOf("=");
-        if (eqIdx === -1) continue;
-        const key = trimmed.slice(0, eqIdx).trim();
-        const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, "");
-        if (!process.env[key]) process.env[key] = val;
-    }
-}
-
-loadEnv();
+import { prisma } from "../lib/prisma";
 
 const SYNC_SERVER_URL = process.env.SYNC_SERVER_URL || "https://habakkukpharmacy.com";
 const SYNC_API_KEY = process.env.SYNC_API_KEY || "";
 const PAGE_SIZE = 500;
-
-const prisma = new PrismaClient();
 
 // All models in order of dependency (parents must exist before children)
 const SYNC_MODELS = [
@@ -177,35 +152,39 @@ async function main() {
     let page = 0;
     let hasMore = true;
 
-    while (hasMore) {
-        console.log(`Fetching page ${page + 1} from cloud...`);
-        const { changes, total } = await pullPage(page);
+    const g = globalThis as any;
+    const prev = g.__HABAKKUK_SYNC_SUPPRESS_QUEUE;
+    g.__HABAKKUK_SYNC_SUPPRESS_QUEUE = true;
+    try {
+        while (hasMore) {
+            console.log(`Fetching page ${page + 1} from cloud...`);
+            const { changes, total } = await pullPage(page);
 
-        // Count records in this batch
-        let batchTotal = 0;
-        for (const [model, records] of Object.entries(changes)) {
-            batchTotal += records.length;
+            let batchTotal = 0;
+            for (const [model, records] of Object.entries(changes)) {
+                batchTotal += records.length;
+            }
+
+            if (batchTotal === 0) {
+                hasMore = false;
+                break;
+            }
+
+            for (const modelName of SYNC_MODELS) {
+                const records = changes[modelName] || [];
+                if (records.length === 0) continue;
+
+                process.stdout.write(`  Applying ${records.length} ${modelName} records... `);
+                const applied = await upsertRecords(modelName, records);
+                grandTotal[modelName] = (grandTotal[modelName] || 0) + applied;
+                console.log(`✅ ${applied}`);
+            }
+
+            hasMore = batchTotal >= PAGE_SIZE;
+            page++;
         }
-
-        if (batchTotal === 0) {
-            hasMore = false;
-            break;
-        }
-
-        // Write each model's records to local SQLite
-        for (const modelName of SYNC_MODELS) {
-            const records = changes[modelName] || [];
-            if (records.length === 0) continue;
-
-            process.stdout.write(`  Applying ${records.length} ${modelName} records... `);
-            const applied = await upsertRecords(modelName, records);
-            grandTotal[modelName] = (grandTotal[modelName] || 0) + applied;
-            console.log(`✅ ${applied}`);
-        }
-
-        // If this page returned < PAGE_SIZE, there's no next page
-        hasMore = batchTotal >= PAGE_SIZE;
-        page++;
+    } finally {
+        g.__HABAKKUK_SYNC_SUPPRESS_QUEUE = prev;
     }
 
     // Log successful sync

@@ -119,3 +119,62 @@ export async function DELETE(
     )
   }
 }
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const session = await getServerSession(authOptions)
+
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const body = await request.json().catch(() => ({} as any))
+    const rawName = typeof body?.clientName === "string" ? body.clientName : ""
+    const clientName = rawName.trim() ? rawName.trim() : null
+
+    const updatedTransaction = await prisma.transaction.update({
+      where: { id },
+      data: {
+        clientName,
+      },
+      include: {
+        items: {
+          include: {
+            product: true,
+            batch: true,
+          },
+        },
+        user: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    })
+
+    await prisma.auditLog.create({
+      data: {
+        userId: session.user.id,
+        action: "UPDATE_TRANSACTION_CLIENT",
+        entity: "TRANSACTION",
+        entityId: id,
+        details: `Updated client name for transaction ${updatedTransaction.transactionNo}`,
+      },
+    })
+
+    return NextResponse.json({ success: true, transaction: updatedTransaction })
+  } catch (error) {
+    console.error("Patch transaction error:", error)
+    return NextResponse.json(
+      {
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    )
+  }
+}

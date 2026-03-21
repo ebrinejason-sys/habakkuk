@@ -159,9 +159,9 @@ export async function GET(request: NextRequest) {
         today: todayStats._sum.netAmount || 0,
         week: weekStats._sum.netAmount || 0,
         month: monthStats._sum.netAmount || 0,
-        todayProfit: todayTransactions.reduce((sum, t) => sum + calculateProfit(t.items), 0),
-        weekProfit: weekTransactions.reduce((sum, t) => sum + calculateProfit(t.items), 0),
-        monthProfit: monthTransactions.reduce((sum, t) => sum + calculateProfit(t.items), 0),
+        todayProfit: todayTransactions.reduce((sum: number, t: any) => sum + calculateProfit(t.items), 0),
+        weekProfit: weekTransactions.reduce((sum: number, t: any) => sum + calculateProfit(t.items), 0),
+        monthProfit: monthTransactions.reduce((sum: number, t: any) => sum + calculateProfit(t.items), 0),
       },
     })
   } catch (error) {

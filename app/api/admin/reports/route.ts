@@ -148,27 +148,27 @@ export async function GET(request: NextRequest) {
       ])
 
       // Get product names for top products
-      const productIds = topProducts.map((p) => p.productId)
+      const productIds = topProducts.map((p: any) => p.productId)
       const products = await prisma.product.findMany({
         where: { id: { in: productIds } },
         select: { id: true, name: true, sku: true },
       })
 
-      const topProductsWithNames = topProducts.map((p) => ({
+      const topProductsWithNames = topProducts.map((p: any) => ({
         ...p,
-        product: products.find((prod) => prod.id === p.productId),
+        product: products.find((prod: any) => prod.id === p.productId),
       }))
 
       // Get user names for sales by user
-      const userIds = salesByUser.map((u) => u.userId)
+      const userIds = salesByUser.map((u: any) => u.userId)
       const users = await prisma.user.findMany({
         where: { id: { in: userIds } },
         select: { id: true, name: true },
       })
 
-      const salesByUserWithNames = salesByUser.map((u) => ({
+      const salesByUserWithNames = salesByUser.map((u: any) => ({
         ...u,
-        user: users.find((user) => user.id === u.userId),
+        user: users.find((user: any) => user.id === u.userId),
       }))
 
       return NextResponse.json({
@@ -270,11 +270,11 @@ export async function GET(request: NextRequest) {
       })
 
       const inventoryValueAtCost = allProducts.reduce(
-        (sum, p) => sum + p.quantity * p.costPrice,
+        (sum: number, p: any) => sum + p.quantity * p.costPrice,
         0
       )
       const inventoryValueAtRetail = allProducts.reduce(
-        (sum, p) => sum + p.quantity * p.price,
+        (sum: number, p: any) => sum + p.quantity * p.price,
         0
       )
 
@@ -325,8 +325,8 @@ export async function GET(request: NextRequest) {
       let totalCost = 0
       const profitByProduct: Record<string, { name: string; revenue: number; cost: number; profit: number; quantity: number }> = {}
 
-      transactions.forEach((t) => {
-        t.items.forEach((item) => {
+      transactions.forEach((t: any) => {
+        t.items.forEach((item: any) => {
           const cost = (item.product?.costPrice || 0) * item.quantity
           totalRevenue += item.totalPrice
           totalCost += cost

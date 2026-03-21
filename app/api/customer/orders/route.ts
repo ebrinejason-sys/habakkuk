@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Create in-app notifications for all eligible staff
-    const notifications = staffUsers.map((user) => ({
+    const notifications = staffUsers.map((user: any) => ({
       userId: user.id,
       type: "NEW_ORDER" as const,
       title: "New Customer Order",

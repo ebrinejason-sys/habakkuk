@@ -114,6 +114,12 @@ export default function POSPage() {
   const [showPrintPrompt, setShowPrintPrompt] = useState(false)
   const [pendingTransaction, setPendingTransaction] = useState<any>(null)
   const [receiptStaffNamePending, setReceiptStaffNamePending] = useState<string>("")
+  const [pendingReceiptMeta, setPendingReceiptMeta] = useState<{ paymentMethod: string; amountPaid: string; change: number } | null>(null)
+  const [showClientNameBeforePrintDialog, setShowClientNameBeforePrintDialog] = useState(false)
+  const [clientNameBeforePrint, setClientNameBeforePrint] = useState("")
+  const [isSavingClientNameBeforePrint, setIsSavingClientNameBeforePrint] = useState(false)
+  const [printReceiptData, setPrintReceiptData] = useState<any>(null)
+  const [isPrintingReceipt, setIsPrintingReceipt] = useState(false)
   const { toast } = useToast()
 
   // Debounce search query for better performance
@@ -142,6 +148,15 @@ export default function POSPage() {
       localStorage.removeItem('pos-cart')
     }
   }, [cart])
+
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      setIsPrintingReceipt(false)
+      setPrintReceiptData(null)
+    }
+    window.addEventListener("afterprint", handleAfterPrint)
+    return () => window.removeEventListener("afterprint", handleAfterPrint)
+  }, [])
 
   // Check if current user is HABAKKUK master account
   const isHabakkukAccount = session?.user?.name === "HABAKKUK" || session?.user?.email === "habakkuk@habakkukpharmacy.com"
@@ -340,11 +355,10 @@ export default function POSPage() {
       setShowStaffDialog(true)
       return
     }
-
-    processTransaction(selectedStaff)
+    processTransaction(selectedStaff, { name: "", phone: "", address: "" })
   }
 
-  const processTransaction = async (staffForReceipt?: StaffMember | null) => {
+  const processTransaction = async (staffForReceipt: StaffMember | null, client: { name: string; phone: string; address: string }) => {
     setIsProcessing(true)
 
     // Determine staff name for this specific transaction
@@ -373,6 +387,9 @@ export default function POSPage() {
           paymentMethod,
           staffId: receiptStaffId,
           staffName: receiptStaffName,
+          clientName: client.name,
+          clientPhone: client.phone,
+          clientAddress: client.address,
         }),
       })
 
@@ -388,6 +405,7 @@ export default function POSPage() {
         // Store the transaction for potential printing and show print prompt
         setPendingTransaction(data.transaction)
         setReceiptStaffNamePending(receiptStaffName)
+        setPendingReceiptMeta({ paymentMethod, amountPaid, change })
         setShowPrintPrompt(true)
 
         // Clear cart and localStorage immediately after successful recording
@@ -420,346 +438,72 @@ export default function POSPage() {
     }
   }
 
-  const handlePrintPromptResponse = (shouldPrint: boolean) => {
-    if (shouldPrint && pendingTransaction) {
-      printReceipt(pendingTransaction, receiptStaffNamePending)
-    }
-    // Clear the pending transaction data
+  const resetPendingPrintFlow = () => {
     setPendingTransaction(null)
     setReceiptStaffNamePending("")
+    setPendingReceiptMeta(null)
     setShowPrintPrompt(false)
+    setShowClientNameBeforePrintDialog(false)
+    setClientNameBeforePrint("")
+    setIsSavingClientNameBeforePrint(false)
   }
 
-  const printReceipt = (transaction: any, receiptStaffName: string) => {
-    const printWindow = window.open("", "", "width=800,height=1000")
-    if (!printWindow) return
+  const handlePrintPromptResponse = (shouldPrint: boolean) => {
+    if (!shouldPrint) {
+      resetPendingPrintFlow()
+      return
+    }
 
-    const pharmacyName = settings?.pharmacyName || "Habakkuk Pharmacy"
-    const location = settings?.location || ""
-    const contact = settings?.contact || ""
-    const email = settings?.email || ""
-    const footerText = settings?.footerText || "Thank you for your purchase!"
-    const currency = settings?.currency || "UGX"
-    const logoImg = settings?.logo ? `<img src="${settings.logo}" alt="Logo" style="width: 80px; height: 80px; object-fit: contain;" />` : ""
-    const subtotal = total
-    const transactionDate = new Date()
+    if (!pendingTransaction) {
+      resetPendingPrintFlow()
+      return
+    }
 
-    const receiptHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Receipt - ${transaction.transactionNo}</title>
-        <style>
-          @page { 
-            size: A4; 
-            margin: 10mm;
-          }
-          @media print {
-            body { margin: 0; }
-          }
-          * {
-            box-sizing: border-box;
-          }
-          body { 
-            font-family: Arial, sans-serif; 
-            padding: 10px;
-            max-width: 210mm;
-            margin: 0 auto;
-            color: #000;
-            font-size: 11px;
-            line-height: 1.3;
-          }
-          .receipt-container {
-            border: 1px solid #000;
-            padding: 15px;
-            background: #fff;
-          }
-          .header {
-            text-align: center;
-            border-bottom: 1px dashed #000;
-            padding-bottom: 8px;
-            margin-bottom: 8px;
-          }
-          .header-content {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-          }
-          .pharmacy-name {
-            font-size: 16px;
-            font-weight: 700;
-            color: #000;
-            margin: 5px 0 2px;
-          }
-          .pharmacy-location {
-            font-size: 10px;
-            color: #000;
-            margin: 1px 0;
-          }
-          .pharmacy-contact {
-            font-size: 10px;
-            color: #000;
-          }
-          .receipt-title {
-            text-align: center;
-            margin: 8px 0;
-          }
-          .receipt-title h2 {
-            font-size: 12px;
-            font-weight: 700;
-            color: #000;
-            margin: 0;
-            letter-spacing: 2px;
-          }
-          .receipt-info {
-            display: flex;
-            justify-content: space-between;
-            border: 1px solid #000;
-            padding: 6px 8px;
-            margin-bottom: 8px;
-            font-size: 10px;
-          }
-          .receipt-info-item {
-            text-align: center;
-          }
-          .receipt-info-label {
-            font-size: 8px;
-            color: #000;
-            text-transform: uppercase;
-          }
-          .receipt-info-value {
-            font-size: 10px;
-            font-weight: 600;
-            color: #000;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 6px 0;
-          }
-          th {
-            background: #000;
-            color: #fff;
-            padding: 4px 6px;
-            text-align: left;
-            font-weight: 600;
-            font-size: 9px;
-            text-transform: uppercase;
-          }
-          th:last-child {
-            text-align: right;
-          }
-          td {
-            padding: 4px 6px;
-            border-bottom: 1px solid #ccc;
-            font-size: 10px;
-            color: #000;
-          }
-          tr:last-child td {
-            border-bottom: none;
-          }
-          .text-right {
-            text-align: right;
-          }
-          .text-center {
-            text-align: center;
-          }
-          .totals-section {
-            border-top: 1px dashed #000;
-            padding-top: 8px;
-            margin-top: 6px;
-          }
-          .totals-table {
-            width: 100%;
-            max-width: 200px;
-            margin-left: auto;
-          }
-          .totals-table td {
-            padding: 2px 0;
-            border: none;
-            font-size: 10px;
-          }
-          .totals-table .total-row {
-            font-size: 14px;
-            font-weight: 700;
-            color: #000;
-            border-top: 2px solid #000;
-            padding-top: 4px;
-          }
-          .payment-info {
-            border: 1px solid #000;
-            padding: 6px 8px;
-            margin: 8px 0;
-            font-size: 10px;
-          }
-          .payment-row {
-            display: flex;
-            justify-content: space-between;
-            margin: 2px 0;
-          }
-          .change-amount {
-            font-weight: 700;
-          }
-          .footer {
-            text-align: center;
-            border-top: 1px dashed #000;
-            padding-top: 8px;
-            margin-top: 8px;
-          }
-          .served-by {
-            font-size: 10px;
-            font-weight: 600;
-            color: #000;
-            margin-bottom: 4px;
-          }
-          .thank-you {
-            font-size: 11px;
-            font-weight: 500;
-            color: #000;
-            margin: 6px 0;
-          }
-          .footer-note {
-            font-size: 9px;
-            color: #000;
-            margin-top: 4px;
-          }
-          .barcode-section {
-            text-align: center;
-            margin-top: 6px;
-            padding-top: 6px;
-            border-top: 1px solid #ccc;
-          }
-          .transaction-code {
-            font-family: 'Courier New', monospace;
-            font-size: 11px;
-            letter-spacing: 1px;
-            color: #000;
-          }
-          .item-name {
-            font-weight: 600;
-          }
-          .item-sku {
-            font-size: 8px;
-            color: #666;
-          }
-        </style>
-      </head>
-      <body onload="window.print(); window.close();">
-        <div class="receipt-container">
-          <div class="header">
-            <div class="header-content">
-              ${logoImg}
-              <div>
-                <h1 class="pharmacy-name">${pharmacyName}</h1>
-                ${location ? `<p class="pharmacy-location">${location}</p>` : ""}
-                ${contact ? `<p class="pharmacy-contact">Tel: ${contact}${email ? ` | ${email}` : ""}</p>` : ""}
-              </div>
-            </div>
-          </div>
+    setClientNameBeforePrint(pendingTransaction.clientName || "")
+    setShowPrintPrompt(false)
+    setShowClientNameBeforePrintDialog(true)
+  }
 
-          <div class="receipt-title">
-            <h2>SALES RECEIPT</h2>
-          </div>
+  const confirmClientNameBeforePrint = async () => {
+    if (!pendingTransaction) {
+      resetPendingPrintFlow()
+      return
+    }
 
-          <div class="receipt-info">
-            <div class="receipt-info-item">
-              <div class="receipt-info-label">Receipt No</div>
-              <div class="receipt-info-value">${transaction.transactionNo}</div>
-            </div>
-            <div class="receipt-info-item">
-              <div class="receipt-info-label">Date</div>
-              <div class="receipt-info-value">${transactionDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
-            </div>
-            <div class="receipt-info-item">
-              <div class="receipt-info-label">Time</div>
-              <div class="receipt-info-value">${transactionDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
-            </div>
-          </div>
+    const desiredClientName = clientNameBeforePrint.trim()
 
-          <table>
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th class="text-center">Qty</th>
-                <th class="text-right">Price</th>
-                <th class="text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-            ${cart.map((item, index) => `
-              <tr>
-                <td>
-                  <span class="item-name">${item.name}</span>
-                  ${item.selectedPackage ? `<br/><span class="item-sku" style="color: #2563eb;">${item.selectedPackage.name} (${item.selectedPackage.unitsPerPackage} ${item.unitOfMeasure}s)</span>` : ''}
-                  ${item.sku ? `<br/><span class="item-sku">${item.sku}</span>` : ''}
-                  ${item.batchNumber ? `<br/><span class="item-sku">Batch: ${item.batchNumber}</span>` : ''}
-                  ${item.expiryDate ? `<br/><span class="item-sku">Exp: ${new Date(item.expiryDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</span>` : ''}
-                </td>
-                <td class="text-center">
-                  ${item.selectedPackage
-        ? `${item.cartQuantity} ${item.selectedPackage.name}${item.cartQuantity > 1 ? 's' : ''}<br/><span style="font-size: 8px; color: #666;">(${item.baseUnitsTotal || item.cartQuantity} units)</span>`
-        : item.cartQuantity
+    setIsSavingClientNameBeforePrint(true)
+    let updatedTransaction = pendingTransaction
+
+    try {
+      const response = await fetch(`/api/admin/transactions/${pendingTransaction.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientName: desiredClientName }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data?.transaction) {
+          updatedTransaction = data.transaction
+        }
       }
-                </td>
-                <td class="text-right">${formatCurrency(item.sellingPrice, currency)}</td>
-                <td class="text-right"><strong>${formatCurrency(item.subtotal, currency)}</strong></td>
-              </tr>
-            `).join('')}
-            </tbody>
-          </table>
+    } catch (error) {
+      console.error("Failed to update client name before printing:", error)
+    } finally {
+      setIsSavingClientNameBeforePrint(false)
+    }
 
-          <div class="totals-section">
-            <table class="totals-table">
-              <tr>
-                <td>Subtotal</td>
-                <td class="text-right">${formatCurrency(subtotal, currency)}</td>
-              </tr>
-              ${taxRate > 0 ? `
-              <tr>
-                <td>Tax (${taxRate}%)</td>
-                <td class="text-right">${formatCurrency(taxAmount, currency)}</td>
-              </tr>
-              ` : ""}
-              <tr class="total-row">
-                <td>TOTAL</td>
-                <td class="text-right">${formatCurrency(grandTotal, currency)}</td>
-              </tr>
-            </table>
-          </div>
+    setPrintReceiptData({
+      transaction: updatedTransaction,
+      staffName: receiptStaffNamePending,
+      meta: pendingReceiptMeta,
+      settings,
+    })
+    setIsPrintingReceipt(true)
+    requestAnimationFrame(() => window.print())
 
-          <div class="payment-info">
-            <div class="payment-row">
-              <span>Payment:</span>
-              <strong>${paymentMethod === "MOBILE_MONEY" ? "Mobile Money" : paymentMethod}</strong>
-            </div>
-            ${paymentMethod === "CASH" && amountPaid ? `
-            <div class="payment-row">
-              <span>Paid:</span>
-              <strong>${formatCurrency(parseFloat(amountPaid), currency)}</strong>
-            </div>
-            <div class="payment-row">
-              <span>Change:</span>
-              <strong class="change-amount">${formatCurrency(Math.max(0, change), currency)}</strong>
-            </div>
-            ` : ""}
-          </div>
-
-          <div class="footer">
-            <p class="served-by">Served by: ${receiptStaffName}</p>
-            <p class="thank-you">${footerText}</p>
-            <p class="footer-note">Keep this receipt for your records</p>
-            <div class="barcode-section">
-              <p class="transaction-code">${transaction.transactionNo}</p>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `
-
-    printWindow.document.write(receiptHTML)
-    printWindow.document.close()
+    resetPendingPrintFlow()
   }
 
   const saveAsOrder = () => {
@@ -776,6 +520,17 @@ export default function POSPage() {
 
   return (
     <div>
+      {isPrintingReceipt && printReceiptData && (
+        <div className="print-area fixed inset-0 z-[9999] bg-white p-4 overflow-auto">
+          <TransactionReceipt
+            transaction={printReceiptData.transaction}
+            staffName={printReceiptData.staffName}
+            settings={printReceiptData.settings}
+            meta={printReceiptData.meta}
+          />
+        </div>
+      )}
+
       <div className="mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Point of Sale</h1>
         <p className="text-gray-500 mt-1 sm:mt-2 text-sm sm:text-base">
@@ -804,8 +559,7 @@ export default function POSPage() {
                     onClick={() => {
                       setSelectedStaff(staff)
                       setShowStaffDialog(false)
-                      // Pass the staff directly to avoid state timing issues
-                      processTransaction(staff)
+                      processTransaction(staff, { name: "", phone: "", address: "" })
                     }}
                     className="w-full p-3 text-left border rounded-lg hover:bg-gray-50 hover:border-primary transition-colors"
                   >
@@ -824,6 +578,46 @@ export default function POSPage() {
               >
                 Cancel
               </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {showClientNameBeforePrintDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Client Name</CardTitle>
+              <p className="text-sm text-gray-500">Optional: set a client name before printing</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="clientNameBeforePrint">Client Name</Label>
+                <Input
+                  id="clientNameBeforePrint"
+                  value={clientNameBeforePrint}
+                  onChange={(e) => setClientNameBeforePrint(e.target.value)}
+                  placeholder="e.g. John Doe"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={resetPendingPrintFlow}
+                  disabled={isSavingClientNameBeforePrint}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={confirmClientNameBeforePrint}
+                  disabled={isSavingClientNameBeforePrint}
+                >
+                  Print
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -1487,147 +1281,13 @@ function ReceiptPreviewDialog({
   const currency = settings?.currency || "UGX"
   const pharmacyName = settings?.pharmacyName || "Habakkuk Pharmacy"
   const location = settings?.location || ""
-  const contact = settings?.contact || ""
+  const contact = "078759099"
   const email = settings?.email || ""
   const footerText = settings?.footerText || "Thank you for your purchase!"
   const currentDate = new Date()
 
   const handlePrint = () => {
-    const printWindow = window.open("", "", "width=800,height=1000")
-    if (!printWindow) return
-
-    const logoImg = settings?.logo ? `<img src="${settings.logo}" alt="Logo" style="width: 60px; height: 60px; object-fit: contain;" />` : ""
-
-    const receiptHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Receipt Preview</title>
-        <style>
-          @page { size: A4; margin: 10mm; }
-          body { font-family: Arial, sans-serif; padding: 10px; max-width: 210mm; margin: 0 auto; color: #000; font-size: 11px; }
-          .receipt-container { border: 1px solid #000; padding: 15px; background: #fff; }
-          .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 8px; }
-          .pharmacy-name { font-size: 16px; font-weight: 700; margin: 5px 0 2px; }
-          .pharmacy-info { font-size: 10px; margin: 1px 0; }
-          .receipt-title { text-align: center; margin: 8px 0; font-size: 12px; font-weight: 700; letter-spacing: 2px; }
-          .receipt-info { display: flex; justify-content: space-between; border: 1px solid #000; padding: 6px 8px; margin-bottom: 8px; font-size: 10px; }
-          .receipt-info-item { text-align: center; }
-          .receipt-info-label { font-size: 8px; text-transform: uppercase; }
-          .receipt-info-value { font-size: 10px; font-weight: 600; }
-          table { width: 100%; border-collapse: collapse; margin: 6px 0; }
-          th { background: #000; color: #fff; padding: 4px 6px; text-align: left; font-weight: 600; font-size: 9px; text-transform: uppercase; }
-          th:last-child { text-align: right; }
-          td { padding: 4px 6px; border-bottom: 1px solid #ccc; font-size: 10px; }
-          .text-right { text-align: right; }
-          .text-center { text-align: center; }
-          .totals-section { border-top: 1px dashed #000; padding-top: 8px; margin-top: 6px; }
-          .totals-table { width: 100%; max-width: 180px; margin-left: auto; }
-          .totals-table td { padding: 2px 0; border: none; font-size: 10px; }
-          .totals-table .total-row { font-size: 13px; font-weight: 700; border-top: 2px solid #000; padding-top: 4px; }
-          .payment-info { border: 1px solid #000; padding: 6px 8px; margin: 8px 0; font-size: 10px; }
-          .payment-row { display: flex; justify-content: space-between; margin: 2px 0; }
-          .footer { text-align: center; border-top: 1px dashed #000; padding-top: 8px; margin-top: 8px; }
-          .served-by { font-size: 10px; font-weight: 600; margin-bottom: 4px; }
-          .thank-you { font-size: 10px; margin: 4px 0; }
-          .footer-note { font-size: 9px; margin-top: 4px; }
-        </style>
-      </head>
-      <body onload="window.print(); window.close();">
-        <div class="receipt-container">
-          <div class="header">
-            ${logoImg}
-            <h1 class="pharmacy-name">${pharmacyName}</h1>
-            ${location ? `<p class="pharmacy-info">${location}</p>` : ""}
-            ${contact ? `<p class="pharmacy-info">Tel: ${contact}${email ? ` | ${email}` : ""}</p>` : ""}
-          </div>
-
-          <div class="receipt-title">SALES RECEIPT</div>
-
-          <div class="receipt-info">
-            <div class="receipt-info-item">
-              <div class="receipt-info-label">Receipt No</div>
-              <div class="receipt-info-value">TXN-PREVIEW</div>
-            </div>
-            <div class="receipt-info-item">
-              <div class="receipt-info-label">Date</div>
-              <div class="receipt-info-value">${currentDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
-            </div>
-            <div class="receipt-info-item">
-              <div class="receipt-info-label">Time</div>
-              <div class="receipt-info-value">${currentDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
-            </div>
-          </div>
-
-          <table>
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th class="text-center">Qty</th>
-                <th class="text-right">Price</th>
-                <th class="text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${cart.map((item) => `
-                <tr>
-                  <td><strong>${item.name}</strong>${item.sku ? `<br/><span style="font-size:8px;color:#666">${item.sku}</span>` : ""}</td>
-                  <td class="text-center">${item.cartQuantity}</td>
-                  <td class="text-right">${formatCurrency(item.sellingPrice, currency)}</td>
-                  <td class="text-right"><strong>${formatCurrency(item.subtotal, currency)}</strong></td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-
-          <div class="totals-section">
-            <table class="totals-table">
-              <tr>
-                <td>Subtotal</td>
-                <td class="text-right">${formatCurrency(total, currency)}</td>
-              </tr>
-              ${taxRate > 0 ? `
-              <tr>
-                <td>Tax (${taxRate}%)</td>
-                <td class="text-right">${formatCurrency(taxAmount, currency)}</td>
-              </tr>
-              ` : ""}
-              <tr class="total-row">
-                <td>TOTAL</td>
-                <td class="text-right">${formatCurrency(grandTotal, currency)}</td>
-              </tr>
-            </table>
-          </div>
-
-          <div class="payment-info">
-            <div class="payment-row">
-              <span>Payment:</span>
-              <strong>${paymentMethod === "MOBILE_MONEY" ? "Mobile Money" : paymentMethod}</strong>
-            </div>
-            ${paymentMethod === "CASH" && amountPaid ? `
-            <div class="payment-row">
-              <span>Paid:</span>
-              <strong>${formatCurrency(parseFloat(amountPaid), currency)}</strong>
-            </div>
-            <div class="payment-row">
-              <span>Change:</span>
-              <strong>${formatCurrency(Math.max(0, change), currency)}</strong>
-            </div>
-            ` : ""}
-          </div>
-
-          <div class="footer">
-            <p class="served-by">Served by: ${staffName}</p>
-            <p class="thank-you">${footerText}</p>
-            <p class="footer-note">Keep this receipt for your records</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `
-
-    printWindow.document.write(receiptHTML)
-    printWindow.document.close()
+    requestAnimationFrame(() => window.print())
   }
 
   return (
@@ -1642,7 +1302,7 @@ function ReceiptPreviewDialog({
         </CardHeader>
         <CardContent className="p-4">
           {/* Receipt Preview - Compact B&W Style */}
-          <div className="border border-black p-4 bg-white text-black">
+          <div className="print-area border border-black p-4 bg-white text-black">
             {/* Header */}
             <div className="text-center border-b border-dashed border-black pb-2 mb-2">
               {settings?.logo && (
@@ -1763,6 +1423,160 @@ function ReceiptPreviewDialog({
           </div>
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+function TransactionReceipt({
+  transaction,
+  staffName,
+  settings,
+  meta,
+}: {
+  transaction: any
+  staffName: string
+  settings: Settings | null
+  meta: { paymentMethod: string; amountPaid: string; change: number } | null
+}) {
+  const currency = settings?.currency || "UGX"
+  const pharmacyName = settings?.pharmacyName || "Habakkuk Pharmacy"
+  const location = settings?.location || ""
+  const contact = "078759099"
+  const email = settings?.email || ""
+  const footerText = settings?.footerText || "Thank you for your purchase!"
+
+  const receiptDate = transaction?.createdAt ? new Date(transaction.createdAt) : new Date()
+  const items = Array.isArray(transaction?.items) ? transaction.items : []
+
+  const subtotal = typeof transaction?.totalAmount === "number" ? transaction.totalAmount : 0
+  const taxAmount = typeof transaction?.tax === "number" ? transaction.tax : 0
+  const grandTotal = typeof transaction?.netAmount === "number" ? transaction.netAmount : subtotal + taxAmount
+  const payment = meta?.paymentMethod || transaction?.paymentMethod || ""
+
+  return (
+    <div className="mx-auto max-w-[210mm] text-black">
+      <div className="border border-black p-4 bg-white text-black">
+        <div className="text-center border-b border-dashed border-black pb-2 mb-2">
+          {settings?.logo && (
+            <img
+              src={settings.logo}
+              alt="Logo"
+              className="w-14 h-14 mx-auto object-contain mb-2"
+            />
+          )}
+          <h2 className="text-base font-bold">{pharmacyName}</h2>
+          {location && <p className="text-[10px]">{location}</p>}
+          {contact && <p className="text-[10px]">Tel: {contact}{email ? ` | ${email}` : ""}</p>}
+        </div>
+
+        <div className="text-center mb-2">
+          <h3 className="text-xs font-bold tracking-widest">SALES RECEIPT</h3>
+        </div>
+
+        <div className="flex justify-between border border-black p-2 mb-2 text-[10px]">
+          <div className="text-center">
+            <p className="text-[8px] uppercase">Receipt No</p>
+            <p className="font-semibold">{transaction?.transactionNo || "-"}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-[8px] uppercase">Date</p>
+            <p className="font-semibold">{receiptDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-[8px] uppercase">Time</p>
+            <p className="font-semibold">{receiptDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</p>
+          </div>
+        </div>
+
+        <div className="border border-black p-2 mb-2 text-[10px]">
+          <div className="flex justify-between gap-4">
+            <span className="font-medium">Client:</span>
+            <span className="text-right flex-1">{transaction?.clientName || "-"}</span>
+          </div>
+          <div className="flex justify-between gap-4 mt-0.5">
+            <span className="font-medium">Phone:</span>
+            <span className="text-right flex-1">{transaction?.clientPhone || "-"}</span>
+          </div>
+          <div className="flex justify-between gap-4 mt-0.5">
+            <span className="font-medium">Address:</span>
+            <span className="text-right flex-1">{transaction?.clientAddress || "-"}</span>
+          </div>
+        </div>
+
+        <div className="mb-2">
+          <table className="w-full text-[10px]">
+            <thead>
+              <tr className="bg-black text-white">
+                <th className="text-left py-1 px-2 font-medium">Item</th>
+                <th className="text-center py-1 px-1 font-medium">Qty</th>
+                <th className="text-right py-1 px-1 font-medium">Price</th>
+                <th className="text-right py-1 px-2 font-medium">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item: any) => (
+                <tr key={item.id} className="border-b border-gray-300">
+                  <td className="py-1 px-2">
+                    <span className="font-medium text-[10px]">{item.product?.name || "-"}</span>
+                    {item.product?.sku && <span className="text-[8px] text-gray-600 block">{item.product.sku}</span>}
+                    {item.packageName && <span className="text-[8px] text-blue-700 block">{item.packageQuantity || ""} {item.packageName}</span>}
+                    {item.batch?.batchNumber && <span className="text-[8px] text-gray-600 block">Batch: {item.batch.batchNumber}</span>}
+                    {item.batch?.expiryDate && <span className="text-[8px] text-gray-600 block">Exp: {new Date(item.batch.expiryDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</span>}
+                  </td>
+                  <td className="text-center py-1 px-1">{item.quantity}</td>
+                  <td className="text-right py-1 px-1">{formatCurrency(item.unitPrice, currency)}</td>
+                  <td className="text-right py-1 px-2 font-semibold">{formatCurrency(item.totalPrice, currency)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="border-t border-dashed border-black pt-2">
+          <div className="max-w-[170px] ml-auto space-y-0.5 text-[10px]">
+            <div className="flex justify-between">
+              <span>Subtotal</span>
+              <span>{formatCurrency(subtotal, currency)}</span>
+            </div>
+            {taxAmount > 0 && (
+              <div className="flex justify-between">
+                <span>Tax</span>
+                <span>{formatCurrency(taxAmount, currency)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-sm font-bold border-t-2 border-black pt-1 mt-1">
+              <span>TOTAL</span>
+              <span>{formatCurrency(grandTotal, currency)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="border border-black p-2 my-2 text-[10px]">
+          <div className="flex justify-between">
+            <span>Payment:</span>
+            <span className="font-semibold">{payment === "MOBILE_MONEY" ? "Mobile Money" : payment}</span>
+          </div>
+          {payment === "CASH" && meta?.amountPaid && (
+            <>
+              <div className="flex justify-between mt-0.5">
+                <span>Paid:</span>
+                <span className="font-semibold">{formatCurrency(parseFloat(meta.amountPaid), currency)}</span>
+              </div>
+              <div className="flex justify-between mt-0.5">
+                <span>Change:</span>
+                <span className="font-bold">{formatCurrency(Math.max(0, meta.change), currency)}</span>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="text-center border-t border-dashed border-black pt-2 mt-2 space-y-1">
+          <p className="font-semibold text-[10px]">Served by: {staffName}</p>
+          <p className="text-[10px]">{footerText}</p>
+          <p className="text-[8px]">Keep this receipt for your records</p>
+          <p className="font-mono text-[10px] tracking-wider">{transaction?.transactionNo || ""}</p>
+        </div>
+      </div>
     </div>
   )
 }

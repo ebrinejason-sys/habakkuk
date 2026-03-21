@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     // If specific items are provided, process partial refund
     // Otherwise, process full refund
-    const itemsToRefund = items && items.length > 0 ? items : transaction.items.map(i => ({
+    const itemsToRefund = items && items.length > 0 ? items : transaction.items.map((i: any) => ({
       id: i.id,
       quantity: i.quantity,
     }))
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
     let refundAmount = 0
 
     for (const refundItem of itemsToRefund) {
-      const originalItem = transaction.items.find(i => i.id === refundItem.id)
+      const originalItem = transaction.items.find((i: any) => i.id === refundItem.id)
       if (!originalItem) continue
 
       const refundQty = Math.min(refundItem.quantity, originalItem.quantity)

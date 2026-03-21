@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Use a transaction to ensure atomic operation (first come, first served)
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // Check if order exists and is not already claimed
       const order = await tx.order.findUnique({
         where: { id: orderId },
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       })
 
       // Create notifications for other staff about the claim
-      const claimNotifications = otherStaff.map((user) => ({
+      const claimNotifications = otherStaff.map((user: any) => ({
         userId: user.id,
         type: "ORDER_CLAIMED" as const,
         title: "Order Claimed",

@@ -2,6 +2,44 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 // The desktop app calls this endpoint to push offline changes to the cloud
+function normalizeSyncData(entityType: string, entityId: string, raw: any, forCreate: boolean) {
+  const base: Record<string, any> = {};
+
+  if (raw && typeof raw === "object") {
+    for (const [k, v] of Object.entries(raw)) {
+      if (k === "id") continue;
+      if (Array.isArray(v)) continue;
+      if (v !== null && typeof v === "object") continue;
+      base[k] = v;
+    }
+  }
+
+  if (entityType.toLowerCase() === "user" && typeof base.permissions === "string") {
+    base.permissions = base.permissions ? base.permissions.split(",").filter(Boolean) : [];
+  }
+
+  if (forCreate) {
+    return { ...base, id: entityId };
+  }
+
+  return base;
+}
+
+function getPrismaModel(entityType: string) {
+  const p: any = prisma as any;
+  const direct = p[entityType];
+  if (direct) return direct;
+
+  const camel = entityType ? entityType.charAt(0).toLowerCase() + entityType.slice(1) : entityType;
+  const camelModel = p[camel];
+  if (camelModel) return camelModel;
+
+  const lowerModel = p[entityType.toLowerCase()];
+  if (lowerModel) return lowerModel;
+
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { syncItems, apiKey } = await req.json();
@@ -22,28 +60,31 @@ export async function POST(req: NextRequest) {
     for (const item of syncItems) {
       try {
         const { id, action, entityType, entityId, payload } = item;
-        const data = JSON.parse(payload);
+        const parsed = JSON.parse(payload);
         
         // Dynamic prisma model access
-        const model = (prisma as any)[entityType.toLowerCase()];
+        const model = getPrismaModel(entityType);
         
         if (!model) {
           throw new Error(`Unknown entity type: ${entityType}`);
         }
 
         if (action === "CREATE") {
+          const createData = normalizeSyncData(entityType, entityId, parsed, true);
+          const updateData = normalizeSyncData(entityType, entityId, parsed, false);
           // Check if it already exists to avoid unique constraint errors on retry
           const existing = await model.findUnique({ where: { id: entityId } });
           if (!existing) {
-            await model.create({ data });
+            await model.create({ data: createData });
           } else {
              // If it exists, we might want to update it instead
-             await model.update({ where: { id: entityId }, data });
+             await model.update({ where: { id: entityId }, data: updateData });
           }
         } else if (action === "UPDATE") {
+          const updateData = normalizeSyncData(entityType, entityId, parsed, false);
           await model.update({
             where: { id: entityId },
-            data,
+            data: updateData,
           });
         } else if (action === "DELETE") {
            // Check if it exists before deleting

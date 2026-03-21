@@ -32,6 +32,9 @@ interface TransactionItem {
 interface Transaction {
   id: string
   transactionNo: string
+  clientName?: string
+  clientPhone?: string
+  clientAddress?: string
   totalAmount: number
   netAmount: number
   discount?: number
@@ -77,6 +80,12 @@ export default function TransactionsPage() {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [settings, setSettings] = useState<PharmacySettings | null>(null)
   const [isResetting, setIsResetting] = useState(false)
+  const [printTransactionData, setPrintTransactionData] = useState<Transaction | null>(null)
+  const [isPrintingReceipt, setIsPrintingReceipt] = useState(false)
+  const [showClientNameBeforePrintDialog, setShowClientNameBeforePrintDialog] = useState(false)
+  const [clientNameBeforePrint, setClientNameBeforePrint] = useState("")
+  const [pendingPrintTransaction, setPendingPrintTransaction] = useState<Transaction | null>(null)
+  const [isSavingClientNameBeforePrint, setIsSavingClientNameBeforePrint] = useState(false)
 
   // Edit transaction state
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
@@ -109,6 +118,15 @@ export default function TransactionsPage() {
   useEffect(() => {
     applyFilters()
   }, [transactions, cashierFilter, paymentFilter, startDate, endDate])
+
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      setIsPrintingReceipt(false)
+      setPrintTransactionData(null)
+    }
+    window.addEventListener("afterprint", handleAfterPrint)
+    return () => window.removeEventListener("afterprint", handleAfterPrint)
+  }, [])
 
   const applyFilters = () => {
     let filtered = [...transactions]
@@ -292,9 +310,8 @@ export default function TransactionsPage() {
         setEditReason("")
         fetchTransactions()
 
-        // Auto-print the updated receipt
         if (data.transaction && confirm("Would you like to print the updated receipt?")) {
-          printTransaction(data.transaction)
+          beginPrintTransaction(data.transaction)
         }
       } else {
         const error = await response.json()
@@ -308,285 +325,104 @@ export default function TransactionsPage() {
     }
   }
 
-  const printTransaction = (transaction: Transaction) => {
-    const printWindow = window.open("", "", "width=800,height=1000")
-    if (!printWindow) return
+  const resetPrintFlow = () => {
+    setShowClientNameBeforePrintDialog(false)
+    setClientNameBeforePrint("")
+    setPendingPrintTransaction(null)
+    setIsSavingClientNameBeforePrint(false)
+  }
 
-    const pharmacyName = settings?.pharmacyName || "Habakkuk Pharmacy"
-    const location = settings?.location || ""
-    const contact = settings?.contact || ""
-    const email = settings?.email || ""
-    const footerText = settings?.footerText || "Thank you for your purchase!"
-    const currency = settings?.currency || "UGX"
-    const logoImg = settings?.logo ? `<img src="${settings.logo}" alt="Logo" style="width: 60px; height: 60px; object-fit: contain;" />` : ""
-    const transactionDate = new Date(transaction.createdAt)
-    const subtotal = transaction.totalAmount
-    const taxAmount = transaction.tax || 0
-    const grandTotal = transaction.netAmount
+  const beginPrintTransaction = (transaction: Transaction) => {
+    setPendingPrintTransaction(transaction)
+    setClientNameBeforePrint(transaction.clientName || "")
+    setShowClientNameBeforePrintDialog(true)
+  }
 
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Receipt - ${transaction.transactionNo}</title>
-        <style>
-          @page { size: A4; margin: 10mm; }
-          @media print { body { margin: 0; } }
-          * { box-sizing: border-box; }
-          body { 
-            font-family: Arial, sans-serif; 
-            padding: 10px;
-            max-width: 210mm;
-            margin: 0 auto;
-            color: #000;
-            font-size: 11px;
-            line-height: 1.3;
-          }
-          .receipt-container {
-            border: 1px solid #000;
-            padding: 15px;
-            background: #fff;
-          }
-          .header {
-            text-align: center;
-            border-bottom: 1px dashed #000;
-            padding-bottom: 8px;
-            margin-bottom: 8px;
-          }
-          .pharmacy-name {
-            font-size: 16px;
-            font-weight: 700;
-            color: #000;
-            margin: 5px 0 2px;
-          }
-          .pharmacy-info {
-            font-size: 10px;
-            color: #000;
-            margin: 1px 0;
-          }
-          .receipt-title {
-            text-align: center;
-            margin: 8px 0;
-            font-size: 12px;
-            font-weight: 700;
-            letter-spacing: 2px;
-          }
-          .receipt-info {
-            display: flex;
-            justify-content: space-between;
-            border: 1px solid #000;
-            padding: 6px 8px;
-            margin-bottom: 8px;
-            font-size: 10px;
-          }
-          .receipt-info-item {
-            text-align: center;
-          }
-          .receipt-info-label {
-            font-size: 8px;
-            text-transform: uppercase;
-          }
-          .receipt-info-value {
-            font-size: 10px;
-            font-weight: 600;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 6px 0;
-          }
-          th {
-            background: #000;
-            color: #fff;
-            padding: 4px 6px;
-            text-align: left;
-            font-weight: 600;
-            font-size: 9px;
-            text-transform: uppercase;
-          }
-          th:last-child { text-align: right; }
-          td {
-            padding: 4px 6px;
-            border-bottom: 1px solid #ccc;
-            font-size: 10px;
-          }
-          tr:last-child td { border-bottom: none; }
-          .text-right { text-align: right; }
-          .text-center { text-align: center; }
-          .totals-section {
-            border-top: 1px dashed #000;
-            padding-top: 8px;
-            margin-top: 6px;
-          }
-          .totals-table {
-            width: 100%;
-            max-width: 180px;
-            margin-left: auto;
-          }
-          .totals-table td {
-            padding: 2px 0;
-            border: none;
-            font-size: 10px;
-          }
-          .totals-table .total-row {
-            font-size: 13px;
-            font-weight: 700;
-            border-top: 2px solid #000;
-            padding-top: 4px;
-          }
-          .payment-info {
-            border: 1px solid #000;
-            padding: 6px 8px;
-            margin: 8px 0;
-            font-size: 10px;
-          }
-          .payment-row {
-            display: flex;
-            justify-content: space-between;
-            margin: 2px 0;
-          }
-          .footer {
-            text-align: center;
-            border-top: 1px dashed #000;
-            padding-top: 8px;
-            margin-top: 8px;
-          }
-          .served-by {
-            font-size: 10px;
-            font-weight: 600;
-            margin-bottom: 4px;
-          }
-          .thank-you {
-            font-size: 10px;
-            margin: 4px 0;
-          }
-          .footer-note {
-            font-size: 9px;
-            margin-top: 4px;
-          }
-          .item-name { font-weight: 600; }
-          .item-sku { font-size: 8px; color: #666; }
-          .edited-watermark {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(-45deg);
-            font-size: 48px;
-            font-weight: bold;
-            color: rgba(255, 165, 0, 0.15);
-            pointer-events: none;
-            z-index: 0;
-            white-space: nowrap;
-          }
-          .edited-banner {
-            background: #fef3c7;
-            border: 2px solid #f59e0b;
-            color: #92400e;
-            padding: 8px;
-            text-align: center;
-            font-weight: bold;
-            margin-bottom: 10px;
-          }
-          .receipt-container { position: relative; }
-        </style>
-      </head>
-      <body onload="window.print(); window.close();">
-        <div class="receipt-container">
-          ${transaction.isEdited ? `
-            <div class="edited-watermark">EDITED</div>
-            <div class="edited-banner">⚠️ EDITED RECEIPT - Original transaction modified</div>
-          ` : ''}
-          <div class="header">
-            ${logoImg}
-            <h1 class="pharmacy-name">${pharmacyName}</h1>
-            ${location ? `<p class="pharmacy-info">${location}</p>` : ""}
-            ${contact ? `<p class="pharmacy-info">Tel: ${contact}${email ? ` | ${email}` : ""}</p>` : ""}
-          </div>
+  const confirmClientNameBeforePrint = async () => {
+    if (!pendingPrintTransaction) {
+      resetPrintFlow()
+      return
+    }
 
-          <div class="receipt-title">SALES RECEIPT</div>
+    const desiredClientName = clientNameBeforePrint.trim()
 
-          <div class="receipt-info">
-            <div class="receipt-info-item">
-              <div class="receipt-info-label">Receipt No</div>
-              <div class="receipt-info-value">${transaction.transactionNo}</div>
-            </div>
-            <div class="receipt-info-item">
-              <div class="receipt-info-label">Date</div>
-              <div class="receipt-info-value">${transactionDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
-            </div>
-            <div class="receipt-info-item">
-              <div class="receipt-info-label">Time</div>
-              <div class="receipt-info-value">${transactionDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
-            </div>
-          </div>
+    setIsSavingClientNameBeforePrint(true)
+    let updatedTransaction = pendingPrintTransaction
 
-          <table>
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th class="text-center">Qty</th>
-                <th class="text-right">Price</th>
-                <th class="text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${transaction.items.map(item => `
-                <tr>
-                  <td>
-                    <span class="item-name">${item.product.name}</span>
-                    ${item.product.sku ? `<br/><span class="item-sku">${item.product.sku}</span>` : ""}
-                    ${item.product.expiryDate ? `<br/><span class="item-sku">Exp: ${new Date(item.product.expiryDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</span>` : ""}
-                  </td>
-                  <td class="text-center">${item.quantity}</td>
-                  <td class="text-right">${formatCurrency(item.unitPrice)}</td>
-                  <td class="text-right"><strong>${formatCurrency(item.totalPrice)}</strong></td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
+    try {
+      const response = await fetch(`/api/admin/transactions/${pendingPrintTransaction.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientName: desiredClientName }),
+      })
 
-          <div class="totals-section">
-            <table class="totals-table">
-              <tr>
-                <td>Subtotal</td>
-                <td class="text-right">${formatCurrency(subtotal)}</td>
-              </tr>
-              ${taxAmount > 0 ? `
-              <tr>
-                <td>Tax</td>
-                <td class="text-right">${formatCurrency(taxAmount)}</td>
-              </tr>
-              ` : ""}
-              <tr class="total-row">
-                <td>TOTAL</td>
-                <td class="text-right">${formatCurrency(grandTotal)}</td>
-              </tr>
-            </table>
-          </div>
+      if (response.ok) {
+        const data = await response.json()
+        if (data?.transaction) {
+          updatedTransaction = data.transaction
+        }
+      }
+    } catch (error) {
+      console.error("Failed to update client name before printing:", error)
+    } finally {
+      setIsSavingClientNameBeforePrint(false)
+    }
 
-          <div class="payment-info">
-            <div class="payment-row">
-              <span>Payment Method:</span>
-              <strong>${transaction.paymentMethod === "MOBILE_MONEY" ? "Mobile Money" : transaction.paymentMethod}</strong>
-            </div>
-          </div>
+    setPrintTransactionData(updatedTransaction)
+    setIsPrintingReceipt(true)
+    requestAnimationFrame(() => window.print())
 
-          <div class="footer">
-            <p class="served-by">Served by: ${transaction.user.name}</p>
-            <p class="thank-you">${footerText}</p>
-            <p class="footer-note">Keep this receipt for your records</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `
-
-    printWindow.document.write(html)
-    printWindow.document.close()
+    resetPrintFlow()
   }
 
   return (
     <div>
+      {isPrintingReceipt && printTransactionData && (
+        <div className="print-area fixed inset-0 z-[9999] bg-white p-4 overflow-auto">
+          <TransactionReceipt transaction={printTransactionData} settings={settings} />
+        </div>
+      )}
+
+      {showClientNameBeforePrintDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Client Name</CardTitle>
+              <p className="text-sm text-gray-500">Optional: set a client name before printing</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="clientNameBeforePrint">Client Name</Label>
+                <Input
+                  id="clientNameBeforePrint"
+                  value={clientNameBeforePrint}
+                  onChange={(e) => setClientNameBeforePrint(e.target.value)}
+                  placeholder="e.g. John Doe"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={resetPrintFlow}
+                  disabled={isSavingClientNameBeforePrint}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={confirmClientNameBeforePrint}
+                  disabled={isSavingClientNameBeforePrint}
+                >
+                  Print
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Transactions</h1>
@@ -790,7 +626,7 @@ export default function TransactionsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => printTransaction(transaction)}
+                        onClick={() => beginPrintTransaction(transaction)}
                         title="Print Receipt"
                       >
                         <Printer className="h-4 w-4" />
@@ -893,7 +729,7 @@ export default function TransactionsPage() {
               </div>
 
               <div className="flex justify-end gap-2 pt-4 border-t">
-                <Button variant="outline" onClick={() => printTransaction(selectedTransaction)}>
+                <Button variant="outline" onClick={() => beginPrintTransaction(selectedTransaction)}>
                   <Printer className="h-4 w-4 mr-2" />
                   Print Receipt
                 </Button>
@@ -1113,6 +949,145 @@ export default function TransactionsPage() {
           </Card>
         </div>
       )}
+    </div>
+  )
+}
+
+function TransactionReceipt({
+  transaction,
+  settings,
+}: {
+  transaction: Transaction
+  settings: PharmacySettings | null
+}) {
+  const currency = settings?.currency || "UGX"
+  const pharmacyName = settings?.pharmacyName || "Habakkuk Pharmacy"
+  const location = settings?.location || ""
+  const contact = "078759099"
+  const email = settings?.email || ""
+  const footerText = settings?.footerText || "Thank you for your purchase!"
+
+  const receiptDate = transaction?.createdAt ? new Date(transaction.createdAt) : new Date()
+  const subtotal = typeof transaction.totalAmount === "number" ? transaction.totalAmount : 0
+  const taxAmount = typeof transaction.tax === "number" ? transaction.tax : 0
+  const grandTotal = typeof transaction.netAmount === "number" ? transaction.netAmount : subtotal + taxAmount
+
+  return (
+    <div className="mx-auto max-w-[210mm] text-black">
+      <div className="border border-black p-4 bg-white text-black relative">
+        {transaction.isEdited && (
+          <div className="mb-2 border-2 border-amber-500 bg-amber-100 text-amber-900 text-center font-bold py-2">
+            EDITED RECEIPT
+          </div>
+        )}
+
+        <div className="text-center border-b border-dashed border-black pb-2 mb-2">
+          {settings?.logo && (
+            <img
+              src={settings.logo}
+              alt="Logo"
+              className="w-14 h-14 mx-auto object-contain mb-2"
+            />
+          )}
+          <h2 className="text-base font-bold">{pharmacyName}</h2>
+          {location && <p className="text-[10px]">{location}</p>}
+          {contact && <p className="text-[10px]">Tel: {contact}{email ? ` | ${email}` : ""}</p>}
+        </div>
+
+        <div className="text-center mb-2">
+          <h3 className="text-xs font-bold tracking-widest">SALES RECEIPT</h3>
+        </div>
+
+        <div className="flex justify-between border border-black p-2 mb-2 text-[10px]">
+          <div className="text-center">
+            <p className="text-[8px] uppercase">Receipt No</p>
+            <p className="font-semibold">{transaction.transactionNo}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-[8px] uppercase">Date</p>
+            <p className="font-semibold">{receiptDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-[8px] uppercase">Time</p>
+            <p className="font-semibold">{receiptDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</p>
+          </div>
+        </div>
+
+        <div className="border border-black p-2 mb-2 text-[10px]">
+          <div className="flex justify-between gap-4">
+            <span className="font-medium">Client:</span>
+            <span className="text-right flex-1">{transaction.clientName || "-"}</span>
+          </div>
+          <div className="flex justify-between gap-4 mt-0.5">
+            <span className="font-medium">Phone:</span>
+            <span className="text-right flex-1">{transaction.clientPhone || "-"}</span>
+          </div>
+          <div className="flex justify-between gap-4 mt-0.5">
+            <span className="font-medium">Address:</span>
+            <span className="text-right flex-1">{transaction.clientAddress || "-"}</span>
+          </div>
+        </div>
+
+        <div className="mb-2">
+          <table className="w-full text-[10px]">
+            <thead>
+              <tr className="bg-black text-white">
+                <th className="text-left py-1 px-2 font-medium">Item</th>
+                <th className="text-center py-1 px-1 font-medium">Qty</th>
+                <th className="text-right py-1 px-1 font-medium">Price</th>
+                <th className="text-right py-1 px-2 font-medium">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {transaction.items.map((item) => (
+                <tr key={item.id} className="border-b border-gray-300">
+                  <td className="py-1 px-2">
+                    <span className="font-medium text-[10px]">{item.product.name}</span>
+                    {item.product.sku && <span className="text-[8px] text-gray-600 block">{item.product.sku}</span>}
+                    {item.product.expiryDate && <span className="text-[8px] text-gray-600 block">Exp: {new Date(item.product.expiryDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</span>}
+                  </td>
+                  <td className="text-center py-1 px-1">{item.quantity}</td>
+                  <td className="text-right py-1 px-1">{formatCurrency(item.unitPrice, currency)}</td>
+                  <td className="text-right py-1 px-2 font-semibold">{formatCurrency(item.totalPrice, currency)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="border-t border-dashed border-black pt-2">
+          <div className="max-w-[170px] ml-auto space-y-0.5 text-[10px]">
+            <div className="flex justify-between">
+              <span>Subtotal</span>
+              <span>{formatCurrency(subtotal, currency)}</span>
+            </div>
+            {taxAmount > 0 && (
+              <div className="flex justify-between">
+                <span>Tax</span>
+                <span>{formatCurrency(taxAmount, currency)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-sm font-bold border-t-2 border-black pt-1 mt-1">
+              <span>TOTAL</span>
+              <span>{formatCurrency(grandTotal, currency)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="border border-black p-2 my-2 text-[10px]">
+          <div className="flex justify-between">
+            <span>Payment:</span>
+            <span className="font-semibold">{transaction.paymentMethod === "MOBILE_MONEY" ? "Mobile Money" : transaction.paymentMethod}</span>
+          </div>
+        </div>
+
+        <div className="text-center border-t border-dashed border-black pt-2 mt-2 space-y-1">
+          <p className="font-semibold text-[10px]">Served by: {transaction.user.name}</p>
+          <p className="text-[10px]">{footerText}</p>
+          <p className="text-[8px]">Keep this receipt for your records</p>
+          <p className="font-mono text-[10px] tracking-wider">{transaction.transactionNo}</p>
+        </div>
+      </div>
     </div>
   )
 }

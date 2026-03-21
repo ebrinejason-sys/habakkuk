@@ -181,7 +181,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete related purchase orders first
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       // Delete purchase order items
       await tx.purchaseOrderItem.deleteMany({
         where: {

@@ -4,6 +4,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  output   = "../node_modules/@prisma/client-sqlite"
 }
 
 datasource db {
@@ -144,6 +145,9 @@ model Transaction {
   id             String   @id @default(cuid())
   transactionNo  String   @unique
   customerId     String?
+  clientName     String?
+  clientPhone    String?
+  clientAddress  String?
   userId         String
   totalAmount    Float
   discount       Float    @default(0)

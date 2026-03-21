@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create product with packages and batches in a transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // Create the product
       const product = await tx.product.create({
         data: {
@@ -158,7 +158,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Update product with packages and batches in a transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // Update the product
       const product = await tx.product.update({
         where: { id: data.id },

@@ -71,7 +71,7 @@ export async function PUT(
         // Process stock adjustments for quantity changes
         for (const editItem of body.items) {
             const existingItem = existingTransaction.items.find(
-                (item) => item.id === editItem.id
+                (item: any) => item.id === editItem.id
             )
 
             if (!existingItem) continue
@@ -209,7 +209,7 @@ export async function PUT(
 
         // Create notifications for all CEO/ADMIN users
         await prisma.notification.createMany({
-            data: ceoAndAdminUsers.map((user) => ({
+            data: ceoAndAdminUsers.map((user: any) => ({
                 userId: user.id,
                 type: "TRANSACTION_EDIT" as const,
                 title: "⚠️ Transaction Edited",

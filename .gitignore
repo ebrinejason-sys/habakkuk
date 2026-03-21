@@ -42,3 +42,10 @@ next-env.d.ts
 
 # uploads
 /public/uploads
+
+# large files and build artifacts
+/dist/
+*.zip
+*.7z
+*.log
+STOCK.xls
