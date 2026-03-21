@@ -100,6 +100,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No items in cart" }, { status: 400 })
     }
 
+    if (!paymentMethod) {
+      return NextResponse.json({ error: "Payment method is required" }, { status: 400 })
+    }
+
     // Use provided staffId if given (for HABAKKUK master account), otherwise use session user
     const transactionUserId = staffId || session.user.id
 
@@ -123,6 +127,15 @@ export async function POST(request: NextRequest) {
 
         if (!product) {
           throw new Error(`Product not found: ${item.productId}`)
+        }
+
+        // Validate item quantities
+        if (!item.quantity || item.quantity <= 0) {
+          throw new Error(`Invalid quantity for product ${product.name}`)
+        }
+
+        if (item.quantity > product.quantity) {
+          throw new Error(`Insufficient stock for ${product.name}. Available: ${product.quantity}, Requested: ${item.quantity}`)
         }
 
         const itemTotal = item.unitPrice * item.quantity
@@ -186,9 +199,9 @@ export async function POST(request: NextRequest) {
 
       // Get settings for tax
       const settings = await tx.settings.findFirst()
-      const taxRate = settings?.taxRate || 0
-      const tax = totalAmount * (taxRate / 100)
-      const netAmount = totalAmount + tax
+      const taxRate = (settings?.taxRate || 0) / 100
+      const tax = Math.round(totalAmount * taxRate * 100) / 100
+      const netAmount = Math.round((totalAmount + tax) * 100) / 100
 
       // Create transaction
       const transaction = await tx.transaction.create({
@@ -239,15 +252,20 @@ export async function POST(request: NextRequest) {
       }
 
       // Create audit log
-      await tx.auditLog.create({
-        data: {
-          userId: session.user.id,
-          action: "COMPLETE_TRANSACTION",
-          entity: "TRANSACTION",
-          entityId: transaction.id,
-          details: `Completed transaction ${transaction.transactionNo}`,
-        },
-      })
+      try {
+        await tx.auditLog.create({
+          data: {
+            userId: session.user.id,
+            action: "COMPLETE_TRANSACTION",
+            entity: "TRANSACTION",
+            entityId: transaction.id,
+            details: `Completed transaction ${transaction.transactionNo}`,
+          },
+        })
+      } catch (auditError) {
+        console.warn("Failed to create audit log:", auditError)
+        // Don't fail the transaction if audit log fails
+      }
 
       return transaction
     })
@@ -256,9 +274,14 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Transaction error:", error)
     const errorMessage = error instanceof Error ? error.message : "Unknown error"
-    console.error("Error details:", errorMessage)
+    const errorStack = error instanceof Error ? error.stack : ""
+    console.error("Error details:", { message: errorMessage, stack: errorStack })
+    
     return NextResponse.json(
-      { error: "Internal server error", details: errorMessage },
+      { 
+        error: errorMessage || "Failed to process transaction",
+        details: process.env.NODE_ENV === "development" ? { message: errorMessage, stack: errorStack } : undefined
+      },
       { status: 500 }
     )
   }
