@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast"
 import { formatCurrency, generateTransactionNo } from "@/lib/utils"
 import { Search, ShoppingCart, Trash2, Printer, Clock, Eye, Calculator, Package } from "lucide-react"
+import { openDB } from 'idb';
 
 // Debounce hook for search
 function useDebounce<T>(value: T, delay: number): T {
@@ -189,14 +190,11 @@ export default function POSPage() {
   const fetchProducts = async () => {
     try {
       const response = await fetch("/api/admin/inventory")
+      if (!response.ok) throw new Error('Failed to fetch products')
       const data = await response.json()
-      if (Array.isArray(data)) {
-        // Show all products including zero/negative stock for continuous sales
-        setProducts(data)
-      } else {
-        setProducts([])
-      }
+      setProducts(Array.isArray(data) ? data : [])
     } catch (error) {
+      console.error("Failed to fetch products:", error)
       toast({
         variant: "destructive",
         title: "Error",
@@ -370,72 +368,95 @@ export default function POSPage() {
       ? staffForReceipt.id
       : session?.user?.id
 
-    try {
-      const response = await fetch("/api/admin/pos/transaction", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: cart.map((item) => ({
-            productId: item.id,
-            quantity: item.baseUnitsTotal || item.cartQuantity,  // Always send base units
-            unitPrice: item.sellingPrice,
-            costPrice: item.costPrice,
-            packageName: item.selectedPackage?.name || null,
-            packageQuantity: item.packageQuantity || null,
-            batchId: item.selectedBatchId || null,
-          })),
-          paymentMethod,
-          staffId: receiptStaffId,
-          staffName: receiptStaffName,
-          clientName: client.name,
-          clientPhone: client.phone,
-          clientAddress: client.address,
-        }),
-      })
+    const transactionPayload = {
+      items: cart.map((item) => ({
+        productId: item.id,
+        quantity: item.baseUnitsTotal || item.cartQuantity,
+        unitPrice: item.sellingPrice,
+        costPrice: item.costPrice,
+        packageName: item.selectedPackage?.name || null,
+        packageQuantity: item.packageQuantity || null,
+        batchId: item.selectedBatchId || null,
+      })),
+      paymentMethod,
+      staffId: receiptStaffId,
+      staffName: receiptStaffName,
+      clientName: client.name,
+      clientPhone: client.phone,
+      clientAddress: client.address,
+    };
 
-      const data = await response.json()
+    if (!navigator.onLine) {
+      // Offline: Store locally and queue for sync
+      const db = await dbPromise;
+      const id = Date.now().toString(); // Simple ID for offline
+      await db.add('transactions', { id, ...transactionPayload, synced: false });
+      navigator.serviceWorker.ready.then((sw) => sw.sync.register('sync-transactions'));
+      
+      toast({
+        title: "Stored Offline",
+        description: "Transaction saved locally. Will sync when online.",
+      });
+      
+      // Clear cart and proceed as if successful
+      setCart([]);
+      localStorage.removeItem('pos-cart');
+      setSelectedStaff(null);
+      setAmountPaid("");
+      fetchProducts();
+    } else {
+      // Online: Proceed with API call
+      try {
+        const response = await fetch("/api/admin/pos/transaction", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(transactionPayload),
+        });
 
-      if (response.ok) {
-        // Transaction successfully recorded to database
-        toast({
-          title: "Success",
-          description: "Transaction completed successfully",
-        })
+        const data = await response.json();
 
-        // Store the transaction for potential printing and show print prompt
-        setPendingTransaction(data.transaction)
-        setReceiptStaffNamePending(receiptStaffName)
-        setPendingReceiptMeta({ paymentMethod, amountPaid, change })
-        setShowPrintPrompt(true)
+        if (response.ok) {
+          // Transaction successfully recorded to database
+          toast({
+            title: "Success",
+            description: "Transaction completed successfully",
+          })
 
-        // Clear cart and localStorage immediately after successful recording
-        setCart([])
-        localStorage.removeItem('pos-cart')
+          // Store the transaction for potential printing and show print prompt
+          setPendingTransaction(data.transaction)
+          setReceiptStaffNamePending(receiptStaffName)
+          setPendingReceiptMeta({ paymentMethod, amountPaid, change })
+          setShowPrintPrompt(true)
 
-        // Reset selected staff for next transaction
-        setSelectedStaff(null)
+          // Clear cart and localStorage immediately after successful recording
+          setCart([])
+          localStorage.removeItem('pos-cart')
 
-        // Reset payment fields
-        setAmountPaid("")
+          // Reset selected staff for next transaction
+          setSelectedStaff(null)
 
-        // Refresh products
-        fetchProducts()
-      } else {
+          // Reset payment fields
+          setAmountPaid("")
+
+          // Refresh products
+          fetchProducts()
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: data.error || "Failed to process transaction",
+          })
+        }
+      } catch (error) {
         toast({
           variant: "destructive",
           title: "Error",
-          description: data.error || "Failed to process transaction",
+          description: "An error occurred",
         })
       }
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "An error occurred",
-      })
-    } finally {
-      setIsProcessing(false)
     }
+
+    setIsProcessing(false);
   }
 
   const resetPendingPrintFlow = () => {
@@ -1281,7 +1302,7 @@ function ReceiptPreviewDialog({
   const currency = settings?.currency || "UGX"
   const pharmacyName = settings?.pharmacyName || "Habakkuk Pharmacy"
   const location = settings?.location || ""
-  const contact = "078759099"
+  const contact = "0787599099"
   const email = settings?.email || ""
   const footerText = settings?.footerText || "Thank you for your purchase!"
   const currentDate = new Date()
@@ -1373,9 +1394,9 @@ function ReceiptPreviewDialog({
                   <span>Subtotal</span>
                   <span>{formatCurrency(total, currency)}</span>
                 </div>
-                {taxRate > 0 && (
+                {taxAmount > 0 && (
                   <div className="flex justify-between">
-                    <span>Tax ({taxRate}%)</span>
+                    <span>Tax</span>
                     <span>{formatCurrency(taxAmount, currency)}</span>
                   </div>
                 )}
@@ -1441,7 +1462,7 @@ function TransactionReceipt({
   const currency = settings?.currency || "UGX"
   const pharmacyName = settings?.pharmacyName || "Habakkuk Pharmacy"
   const location = settings?.location || ""
-  const contact = "078759099"
+  const contact = "0787599099"
   const email = settings?.email || ""
   const footerText = settings?.footerText || "Thank you for your purchase!"
 
@@ -1580,3 +1601,22 @@ function TransactionReceipt({
     </div>
   )
 }
+
+const dbPromise = openDB('habakkuk-offline', 1, {
+  upgrade(db) {
+    db.createObjectStore('transactions', { keyPath: 'id' });
+  },
+});
+
+const handleTransaction = async () => {
+  const transactionData = { /* ... */ };
+  if (!navigator.onLine) {
+    const db = await dbPromise;
+    await db.add('transactions', transactionData);
+    // Register sync
+    navigator.serviceWorker.ready.then((sw) => sw.sync.register('sync-transactions'));
+  } else {
+    // Online: API call
+    await fetch('/api/admin/pos/transaction', { method: 'POST', body: JSON.stringify(transactionData) });
+  }
+};

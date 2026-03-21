@@ -319,3 +319,23 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+/**
+ * Verify a specific transaction (any user)
+ */
+export async function POST(request: Request) {
+  try {
+    const { id } = await request.json();
+    if (!id) return NextResponse.json({ error: 'Transaction ID required' }, { status: 400 });
+
+    const transaction = await prisma.transaction.findUnique({ where: { id } });
+    if (!transaction) return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+
+    // Verification logic
+    await prisma.transaction.update({ where: { id }, data: { verified: true } });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Verification error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
