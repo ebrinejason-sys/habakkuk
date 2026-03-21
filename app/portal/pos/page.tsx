@@ -119,6 +119,9 @@ export default function POSPage() {
   const [showClientNameBeforePrintDialog, setShowClientNameBeforePrintDialog] = useState(false)
   const [clientNameBeforePrint, setClientNameBeforePrint] = useState("")
   const [isSavingClientNameBeforePrint, setIsSavingClientNameBeforePrint] = useState(false)
+  const [showClientDetailsBeforeSaleDialog, setShowClientDetailsBeforeSaleDialog] = useState(false)
+  const [clientDetailsBeforeSale, setClientDetailsBeforeSale] = useState({ name: "", phone: "", address: "" })
+  const [isSavingClientDetailsBeforeSale, setIsSavingClientDetailsBeforeSale] = useState(false)
   const [printReceiptData, setPrintReceiptData] = useState<any>(null)
   const [isPrintingReceipt, setIsPrintingReceipt] = useState(false)
   const { toast } = useToast()
@@ -353,7 +356,9 @@ export default function POSPage() {
       setShowStaffDialog(true)
       return
     }
-    processTransaction(selectedStaff, { name: "", phone: "", address: "" })
+    // Show client details dialog before processing transaction
+    setClientNameBeforePrint("")
+    setShowClientDetailsBeforeSaleDialog(true)
   }
 
   const processTransaction = async (staffForReceipt: StaffMember | null, client: { name: string; phone: string; address: string }) => {
@@ -536,6 +541,31 @@ export default function POSPage() {
     resetPendingPrintFlow()
   }
 
+  const confirmClientDetailsBeforeSale = async () => {
+    setIsSavingClientDetailsBeforeSale(true)
+    
+    try {
+      // Proceed with transaction using the entered client details
+      processTransaction(selectedStaff, {
+        name: clientDetailsBeforeSale.name.trim(),
+        phone: clientDetailsBeforeSale.phone.trim(),
+        address: clientDetailsBeforeSale.address.trim(),
+      })
+      
+      // Close the dialog after processing
+      setShowClientDetailsBeforeSaleDialog(false)
+    } catch (error) {
+      console.error("Error processing client details:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to process transaction",
+      })
+    } finally {
+      setIsSavingClientDetailsBeforeSale(false)
+    }
+  }
+
   const saveAsOrder = () => {
     if (cart.length === 0) {
       toast({
@@ -608,6 +638,66 @@ export default function POSPage() {
               >
                 Cancel
               </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {showClientDetailsBeforeSaleDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Client Details</CardTitle>
+              <p className="text-sm text-gray-500">Enter client information for the receipt (optional)</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="clientName">Client Name</Label>
+                <Input
+                  id="clientName"
+                  value={clientDetailsBeforeSale.name}
+                  onChange={(e) => setClientDetailsBeforeSale({ ...clientDetailsBeforeSale, name: e.target.value })}
+                  placeholder="e.g. John Doe"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="clientPhone">Phone Number</Label>
+                <Input
+                  id="clientPhone"
+                  value={clientDetailsBeforeSale.phone}
+                  onChange={(e) => setClientDetailsBeforeSale({ ...clientDetailsBeforeSale, phone: e.target.value })}
+                  placeholder="e.g. 0741234567"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="clientAddress">Address</Label>
+                <Input
+                  id="clientAddress"
+                  value={clientDetailsBeforeSale.address}
+                  onChange={(e) => setClientDetailsBeforeSale({ ...clientDetailsBeforeSale, address: e.target.value })}
+                  placeholder="e.g. Kampala, Uganda"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowClientDetailsBeforeSaleDialog(false)}
+                  disabled={isSavingClientDetailsBeforeSale}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={confirmClientDetailsBeforeSale}
+                  disabled={isSavingClientDetailsBeforeSale}
+                >
+                  {isSavingClientDetailsBeforeSale ? "Processing..." : "Proceed"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
