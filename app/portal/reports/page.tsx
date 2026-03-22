@@ -16,9 +16,27 @@ import {
   Calendar,
   Users,
   AlertTriangle,
-  Clock
+  Clock,
+  PieChart as PieChartIcon
 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+  AreaChart,
+  Area
+} from "recharts"
 
 export const dynamic = 'force-dynamic'
 
@@ -40,6 +58,8 @@ interface SalesReport {
     _count: number
   }>
   salesByDay: Array<{ date: string; total: number; count: number }>
+  salesByCategory: Array<{ category: string; total: number; count: number }>
+  topCustomers: Array<{ name: string; total: number; count: number }>
   topProducts: Array<{
     productId: string
     _sum: { quantity: number; totalPrice: number }
@@ -72,6 +92,12 @@ interface InventoryReport {
     sku: string
     quantity: number
     reorderLevel: number
+  }>
+  outOfStockProducts: Array<{
+    id: string
+    name: string
+    sku: string
+    quantity: number
   }>
   expiringProducts: Array<{
     id: string
@@ -109,6 +135,12 @@ interface ProfitReport {
     cost: number
     profit: number
     quantity: number
+  }>
+  profitByCategory: Array<{
+    category: string
+    revenue: number
+    cost: number
+    profit: number
   }>
 }
 
@@ -158,17 +190,70 @@ export default function ReportsPage() {
     let csvContent = ""
     
     if (report.type === "sales") {
-      csvContent = "Date,Total Sales,Transactions,Average\n"
-      csvContent += `Summary,${(report as SalesReport).summary.totalSales},${(report as SalesReport).summary.transactionCount},${(report as SalesReport).summary.averageTransaction}\n`
+      csvContent = "SALES REPORT\n"
+      csvContent += `Period: ${period}\n\n`
+      csvContent += "SUMMARY\n"
+      csvContent += "Total Sales,Total Discount,Total Tax,Transactions,Average\n"
+      csvContent += `${(report as SalesReport).summary.totalSales},${(report as SalesReport).summary.totalDiscount},${(report as SalesReport).summary.totalTax},${(report as SalesReport).summary.transactionCount},${(report as SalesReport).summary.averageTransaction}\n\n`
+
+      csvContent += "DAILY SALES\n"
+      csvContent += "Date,Total,Count\n"
+      ;(report as SalesReport).salesByDay.forEach(d => {
+        csvContent += `${d.date},${d.total},${d.count}\n`
+      })
+
+      csvContent += "\nSALES BY CATEGORY\n"
+      csvContent += "Category,Total,Count\n"
+      ;(report as SalesReport).salesByCategory.forEach(c => {
+        csvContent += `${c.category},${c.total},${c.count}\n`
+      })
+
+      csvContent += "\nTOP PRODUCTS\n"
+      csvContent += "Product,Quantity,Revenue\n"
+      ;(report as SalesReport).topProducts.forEach(p => {
+        csvContent += `${p.product?.name || 'Unknown'},${p._sum.quantity},${p._sum.totalPrice}\n`
+      })
     } else if (report.type === "inventory") {
-      csvContent = "Product,SKU,Quantity,Status\n"
+      csvContent = "INVENTORY REPORT\n"
+      csvContent += "SUMMARY\n"
+      csvContent += "Total Products,Total Units,Value (Cost),Value (Retail),Potential Profit\n"
+      csvContent += `${(report as InventoryReport).summary.totalProducts},${(report as InventoryReport).summary.totalUnits},${(report as InventoryReport).summary.inventoryValueAtCost},${(report as InventoryReport).summary.inventoryValueAtRetail},${(report as InventoryReport).summary.potentialProfit}\n\n`
+
+      csvContent += "LOW STOCK PRODUCTS\n"
+      csvContent += "Product,SKU,Quantity,Status\n"
       ;(report as InventoryReport).lowStockProducts.forEach(p => {
         csvContent += `${p.name},${p.sku},${p.quantity},Low Stock\n`
       })
+
+      csvContent += "\nOUT OF STOCK PRODUCTS\n"
+      csvContent += "Product,SKU,Quantity\n"
+      ;(report as InventoryReport).outOfStockProducts?.forEach(p => {
+        csvContent += `${p.name},${p.sku},${p.quantity}\n`
+      })
+
+      csvContent += "\nEXPIRING PRODUCTS\n"
+      csvContent += "Product,Expiry Date,Quantity\n"
+      ;(report as InventoryReport).expiringProducts?.forEach(p => {
+        csvContent += `${p.name},${new Date(p.expiryDate).toLocaleDateString()},${p.quantity}\n`
+      })
     } else if (report.type === "profit") {
-      csvContent = "Product,Revenue,Cost,Profit,Quantity\n"
+      csvContent = "PROFIT REPORT\n"
+      csvContent += "SUMMARY\n"
+      csvContent += "Total Revenue,Total Cost,Gross Profit,Margin (%)\n"
+      csvContent += `${(report as ProfitReport).summary.totalRevenue},${(report as ProfitReport).summary.totalCost},${(report as ProfitReport).summary.grossProfit},${(report as ProfitReport).summary.profitMargin.toFixed(2)}\n\n`
+
+      csvContent += "PROFIT BY PRODUCT\n"
+      csvContent += "Product,Quantity,Revenue,Cost,Profit,Margin (%)\n"
       ;(report as ProfitReport).profitByProduct.forEach(p => {
-        csvContent += `${p.name},${p.revenue},${p.cost},${p.profit},${p.quantity}\n`
+        const margin = p.revenue > 0 ? ((p.profit / p.revenue) * 100).toFixed(2) : 0
+        csvContent += `${p.name},${p.quantity},${p.revenue},${p.cost},${p.profit},${margin}\n`
+      })
+
+      csvContent += "\nPROFIT BY CATEGORY\n"
+      csvContent += "Category,Revenue,Cost,Profit,Margin (%)\n"
+      ;(report as ProfitReport).profitByCategory?.forEach(c => {
+        const margin = c.revenue > 0 ? ((c.profit / c.revenue) * 100).toFixed(2) : 0
+        csvContent += `${c.category},${c.revenue},${c.cost},${c.profit},${margin}\n`
       })
     }
 
@@ -179,6 +264,8 @@ export default function ReportsPage() {
     a.download = `${reportType}-report-${new Date().toISOString().split("T")[0]}.csv`
     a.click()
   }
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#ef4444', '#3b82f6', '#10b981']
 
   return (
     <div className="space-y-6">
@@ -195,12 +282,12 @@ export default function ReportsPage() {
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="border-primary/20 bg-primary/5">
         <CardContent className="pt-6">
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-col md:flex-row gap-6">
             {/* Report Type */}
-            <div className="space-y-2">
-              <Label>Report Type</Label>
+            <div className="space-y-3">
+              <Label className="text-muted-foreground font-semibold uppercase text-xs tracking-wider">Report Type</Label>
               <div className="flex gap-2">
                 {[
                   { value: "sales", label: "Sales", icon: DollarSign },
@@ -211,7 +298,7 @@ export default function ReportsPage() {
                     key={type.value}
                     variant={reportType === type.value ? "default" : "outline"}
                     onClick={() => setReportType(type.value as ReportType)}
-                    className="gap-2"
+                    className="gap-2 h-10 px-4"
                   >
                     <type.icon className="h-4 w-4" />
                     {type.label}
@@ -221,8 +308,8 @@ export default function ReportsPage() {
             </div>
 
             {/* Period */}
-            <div className="space-y-2">
-              <Label>Period</Label>
+            <div className="space-y-3 flex-1">
+              <Label className="text-muted-foreground font-semibold uppercase text-xs tracking-wider">Time Period</Label>
               <div className="flex gap-2 flex-wrap">
                 {[
                   { value: "today", label: "Today" },
@@ -230,13 +317,14 @@ export default function ReportsPage() {
                   { value: "week", label: "This Week" },
                   { value: "month", label: "This Month" },
                   { value: "year", label: "This Year" },
-                  { value: "custom", label: "Custom" },
+                  { value: "custom", label: "Custom Range" },
                 ].map((p) => (
                   <Button
                     key={p.value}
                     variant={period === p.value ? "default" : "outline"}
                     size="sm"
                     onClick={() => setPeriod(p.value as Period)}
+                    className="h-10 px-3"
                   >
                     {p.label}
                   </Button>
@@ -246,24 +334,26 @@ export default function ReportsPage() {
 
             {/* Custom Date Range */}
             {period === "custom" && (
-              <div className="flex gap-4 items-end">
+              <div className="flex gap-4 items-end animate-in fade-in slide-in-from-top-2 duration-300">
                 <div className="space-y-2">
-                  <Label>Start Date</Label>
+                  <Label className="text-xs">From</Label>
                   <Input
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
+                    className="h-10"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>End Date</Label>
+                  <Label className="text-xs">To</Label>
                   <Input
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
+                    className="h-10"
                   />
                 </div>
-                <Button onClick={fetchReport}>Apply</Button>
+                <Button onClick={fetchReport} className="h-10">Apply</Button>
               </div>
             )}
           </div>
@@ -291,6 +381,9 @@ export default function ReportsPage() {
                 <div className="text-2xl font-bold">
                   {formatCurrency((report as SalesReport).summary.totalSales)}
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Tax: {formatCurrency((report as SalesReport).summary.totalTax)}
+                </p>
               </CardContent>
             </Card>
             <Card>
@@ -302,6 +395,9 @@ export default function ReportsPage() {
                 <div className="text-2xl font-bold">
                   {(report as SalesReport).summary.transactionCount}
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Completed orders
+                </p>
               </CardContent>
             </Card>
             <Card>
@@ -313,6 +409,9 @@ export default function ReportsPage() {
                 <div className="text-2xl font-bold">
                   {formatCurrency((report as SalesReport).summary.averageTransaction)}
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Per transaction
+                </p>
               </CardContent>
             </Card>
             <Card>
@@ -324,39 +423,109 @@ export default function ReportsPage() {
                 <div className="text-2xl font-bold">
                   {formatCurrency((report as SalesReport).summary.totalDiscount)}
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Total markdown
+                </p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Sales by Payment Method */}
+          {/* Charts Row 1: Sales Trend */}
           <Card>
             <CardHeader>
-              <CardTitle>Sales by Payment Method</CardTitle>
+              <CardTitle>Sales Trend</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Payment Method</TableHead>
-                    <TableHead className="text-right">Transactions</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(report as SalesReport).salesByPaymentMethod.map((method) => (
-                    <TableRow key={method.paymentMethod}>
-                      <TableCell className="font-medium">{method.paymentMethod}</TableCell>
-                      <TableCell className="text-right">{method._count}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(method._sum.netAmount || 0)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={(report as SalesReport).salesByDay}>
+                    <defs>
+                      <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      tickFormatter={(value) => new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    />
+                    <YAxis tickFormatter={(value) => `UGX ${value/1000}k`} />
+                    <Tooltip
+                      formatter={(value: number) => [formatCurrency(value), "Sales"]}
+                      labelFormatter={(label) => new Date(label).toLocaleDateString()}
+                    />
+                    <Area type="monotone" dataKey="total" stroke="#3b82f6" fillOpacity={1} fill="url(#colorTotal)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
 
-          {/* Top Products & Sales by User */}
           <div className="grid gap-6 md:grid-cols-2">
+            {/* Sales by Category Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PieChartIcon className="h-5 w-5" />
+                  Sales by Category
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={(report as SalesReport).salesByCategory}
+                        dataKey="total"
+                        nameKey="category"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {(report as SalesReport).salesByCategory.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Sales by Payment Method Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5" />
+                  Payment Methods
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={(report as SalesReport).salesByPaymentMethod}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="paymentMethod" />
+                      <YAxis tickFormatter={(value) => `UGX ${value/1000}k`} />
+                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                      <Bar dataKey="_sum.netAmount" name="Total Sales" fill="#10b981">
+                        {(report as SalesReport).salesByPaymentMethod.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Top Products */}
             <Card>
               <CardHeader>
                 <CardTitle>Top Selling Products</CardTitle>
@@ -383,32 +552,73 @@ export default function ReportsPage() {
               </CardContent>
             </Card>
 
+            {/* Top Customers */}
             <Card>
               <CardHeader>
-                <CardTitle>Sales by Staff</CardTitle>
+                <CardTitle>Top Customers</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Staff</TableHead>
-                      <TableHead className="text-right">Transactions</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead className="text-right">Orders</TableHead>
+                      <TableHead className="text-right">Spend</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(report as SalesReport).salesByUser.map((user) => (
-                      <TableRow key={user.userId}>
-                        <TableCell className="font-medium">{user.user?.name || "Unknown"}</TableCell>
-                        <TableCell className="text-right">{user._count}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(user._sum.netAmount || 0)}</TableCell>
+                    {(report as SalesReport).topCustomers.map((customer, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">{customer.name}</TableCell>
+                        <TableCell className="text-right">{customer.count}</TableCell>
+                        <TableCell className="text-right font-semibold text-green-600">
+                          {formatCurrency(customer.total)}
+                        </TableCell>
                       </TableRow>
                     ))}
+                    {(report as SalesReport).topCustomers.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center text-gray-500 py-4">
+                          No customer data recorded for this period
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
             </Card>
           </div>
+
+          {/* Sales by User */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Sales Performance by Staff</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Staff Name</TableHead>
+                    <TableHead className="text-right">Transactions</TableHead>
+                    <TableHead className="text-right">Total Revenue</TableHead>
+                    <TableHead className="text-right">Avg Transaction</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(report as SalesReport).salesByUser.map((user) => (
+                    <TableRow key={user.userId}>
+                      <TableCell className="font-medium">{user.user?.name || "Unknown Staff"}</TableCell>
+                      <TableCell className="text-right">{user._count}</TableCell>
+                      <TableCell className="text-right font-semibold">{formatCurrency(user._sum.netAmount || 0)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {formatCurrency((user._sum.netAmount || 0) / user._count)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </div>
       )}
 
@@ -560,7 +770,7 @@ export default function ReportsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(report as InventoryReport).expiringProducts.slice(0, 10).map((product) => (
+                    {(report as InventoryReport).expiringProducts?.slice(0, 10).map((product) => (
                       <TableRow key={product.id}>
                         <TableCell className="font-medium">{product.name}</TableCell>
                         <TableCell>{new Date(product.expiryDate).toLocaleDateString()}</TableCell>
@@ -608,31 +818,65 @@ export default function ReportsPage() {
           )}
 
           {/* Products by Category */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Products by Category</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="text-right">Products</TableHead>
-                    <TableHead className="text-right">Total Units</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(report as InventoryReport).productsByCategory.map((cat) => (
-                    <TableRow key={cat.category}>
-                      <TableCell className="font-medium">{cat.category}</TableCell>
-                      <TableCell className="text-right">{cat._count}</TableCell>
-                      <TableCell className="text-right">{cat._sum.quantity}</TableCell>
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PieChartIcon className="h-5 w-5" />
+                  Stock Distribution by Category
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={(report as InventoryReport).productsByCategory}
+                        dataKey="_sum.quantity"
+                        nameKey="category"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {(report as InventoryReport).productsByCategory.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Products by Category</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Category</TableHead>
+                      <TableHead className="text-right">Products</TableHead>
+                      <TableHead className="text-right">Total Units</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {(report as InventoryReport).productsByCategory.map((cat) => (
+                      <TableRow key={cat.category}>
+                        <TableCell className="font-medium">{cat.category}</TableCell>
+                        <TableCell className="text-right">{cat._count}</TableCell>
+                        <TableCell className="text-right">{cat._sum.quantity}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )}
 
@@ -678,6 +922,66 @@ export default function ReportsPage() {
               <CardContent>
                 <div className="text-2xl font-bold">
                   {(report as ProfitReport).summary.profitMargin.toFixed(1)}%
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Profit by Category Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PieChartIcon className="h-5 w-5" />
+                  Profit Distribution by Category
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={(report as ProfitReport).profitByCategory}
+                        dataKey="profit"
+                        nameKey="category"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {(report as ProfitReport).profitByCategory?.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Profit vs Cost Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Profit vs Cost per Category
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={(report as ProfitReport).profitByCategory}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="category" />
+                      <YAxis tickFormatter={(value) => `UGX ${value/1000}k`} />
+                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                      <Legend />
+                      <Bar dataKey="cost" name="Total Cost" fill="#ef4444" stackId="a" />
+                      <Bar dataKey="profit" name="Gross Profit" fill="#10b981" stackId="a" />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>
