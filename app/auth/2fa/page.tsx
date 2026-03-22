@@ -19,8 +19,8 @@ function TwoFactorContent() {
   const searchParams = useSearchParams()
   const { toast } = useToast()
 
-  const email = searchParams.get("email")
-  const sentTo = searchParams.get("sentTo")
+  const email = searchParams?.get("email")
+  const sentTo = searchParams?.get("sentTo")
 
   useEffect(() => {
     if (!email) {

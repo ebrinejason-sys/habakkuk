@@ -1,0 +1,21 @@
+{
+  "name": "Habakkuk Pharmacy POS",
+  "short_name": "Habakkuk POS",
+  "description": "Complete Pharmacy Point of Sale System with offline support",
+  "start_url": "/portal/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#7c3aed",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

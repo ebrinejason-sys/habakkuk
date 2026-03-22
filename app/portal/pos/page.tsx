@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast"
 import { formatCurrency, generateTransactionNo } from "@/lib/utils"
 import { Search, ShoppingCart, Trash2, Printer, Clock, Eye, Calculator, Package } from "lucide-react"
-import { openDB } from 'idb';
+import { queueMutation } from "@/lib/offlineStorage"
 
 // Debounce hook for search
 function useDebounce<T>(value: T, delay: number): T {
@@ -393,31 +393,36 @@ export default function POSPage() {
 
     if (!navigator.onLine) {
       // Offline: Store locally and queue for sync
-      const db = await getDBPromise();
-      if (!db) {
+      try {
+        await queueMutation("/api/admin/pos/transaction", "POST", transactionPayload);
+
+        // Register sync via service worker if available
+        if ('serviceWorker' in navigator && (navigator as any).serviceWorker.ready) {
+          (navigator as any).serviceWorker.ready.then((sw: any) => {
+            if (sw.sync) sw.sync.register('sync-mutations');
+          });
+        }
+
+        toast({
+          title: "Stored Offline",
+          description: "Transaction saved locally. Will sync when online.",
+        });
+
+        // Clear cart and proceed as if successful
+        setCart([]);
+        localStorage.removeItem('pos-cart');
+        setSelectedStaff(null);
+        setAmountPaid("");
+        fetchProducts();
+      } catch (err) {
         toast({
           variant: "destructive",
           title: "Error",
           description: "Unable to access offline storage",
         });
-        setIsProcessing(false);
-        return;
       }
-      const id = Date.now().toString(); // Simple ID for offline
-      await db.add('transactions', { id, ...transactionPayload, synced: false });
-      navigator.serviceWorker.ready.then((sw) => sw.sync.register('sync-transactions'));
-      
-      toast({
-        title: "Stored Offline",
-        description: "Transaction saved locally. Will sync when online.",
-      });
-      
-      // Clear cart and proceed as if successful
-      setCart([]);
-      localStorage.removeItem('pos-cart');
-      setSelectedStaff(null);
-      setAmountPaid("");
-      fetchProducts();
+      setIsProcessing(false);
+      return;
     } else {
       // Online: Proceed with API call
       try {
@@ -1701,32 +1706,3 @@ function TransactionReceipt({
   )
 }
 
-let dbPromise: any = null;
-
-const getDBPromise = async () => {
-  if (typeof window === 'undefined') return null;
-  
-  if (!dbPromise) {
-    dbPromise = openDB('habakkuk-offline', 1, {
-      upgrade(db) {
-        db.createObjectStore('transactions', { keyPath: 'id' });
-      },
-    });
-  }
-  
-  return dbPromise;
-};
-
-const handleTransaction = async () => {
-  const transactionData = { /* ... */ };
-  if (!navigator.onLine) {
-    const db = await getDBPromise();
-    if (!db) return;
-    await db.add('transactions', transactionData);
-    // Register sync
-    navigator.serviceWorker.ready.then((sw) => sw.sync.register('sync-transactions'));
-  } else {
-    // Online: API call
-    await fetch('/api/admin/pos/transaction', { method: 'POST', body: JSON.stringify(transactionData) });
-  }
-};

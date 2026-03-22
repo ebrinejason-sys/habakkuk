@@ -1,38 +1,177 @@
-importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.5.4/workbox-sw.js');
+const CACHE_NAME = 'habakkuk-v3';
+const STATIC_ASSETS = [
+  '/',
+  '/login',
+  '/portal/dashboard',
+  '/portal/pos',
+  '/portal/inventory',
+  '/portal/customers',
+  '/manifest.json',
+  '/logo.png',
+  '/favicon.ico',
+  '/splash.html'
+];
 
-workbox.routing.registerRoute(
-  ({ request }) => request.destination === 'document',
-  new workbox.strategies.NetworkFirst()
-);
+// IndexedDB Helpers (Native API for SW compatibility)
+const DB_NAME = 'habakkuk-offline';
+const STORE_NAME = 'sync_queue';
 
-workbox.routing.registerRoute(
-  ({ url }) => url.pathname.startsWith('/api/'),
-  new workbox.strategies.NetworkFirst()
-);
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 2);
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains('transactions')) {
+        db.createObjectStore('transactions', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function getPendingMutations(db) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readonly');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.getAll();
+    request.onsuccess = () => {
+      resolve(request.result.filter(action => !action.synced));
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function markActionSynced(db, id) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const getRequest = store.get(id);
+    getRequest.onsuccess = () => {
+      const data = getRequest.result;
+      if (data) {
+        data.synced = true;
+        const updateRequest = store.put(data);
+        updateRequest.onsuccess = () => resolve();
+        updateRequest.onerror = () => reject(updateRequest.error);
+      } else {
+        resolve();
+      }
+    };
+    getRequest.onerror = () => reject(getRequest.error);
+  });
+}
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.filter((name) => name !== CACHE_NAME).map((name) => caches.delete(name))
+      );
+    })
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // API calls: Network first, with cache fallback and background update
+  if (url.pathname.startsWith('/api/')) {
+    // Skip auth and sync triggers
+    if (url.pathname.includes('/auth/') || url.pathname.includes('/sync/trigger')) {
+      return;
+    }
+
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200 && request.method === 'GET') {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseToCache);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          return caches.match(request);
+        })
+    );
+    return;
+  }
+
+  // Static Assets & Next.js chunks: Stale-While-Revalidate
+  event.respondWith(
+    caches.match(request).then((cachedResponse) => {
+      const networkFetch = fetch(request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseToCache);
+          });
+        }
+        return networkResponse;
+      }).catch(() => null);
+
+      return cachedResponse || networkFetch;
+    })
+  );
+});
 
 self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-transactions') {
-    event.waitUntil(syncTransactions());
+  if (event.tag === 'sync-mutations') {
+    event.waitUntil(replayMutations());
   }
 });
 
-async function syncTransactions() {
-  const db = await openDB('habakkuk-offline', 1);
-  const transactions = await db.getAll('transactions');
-  for (const tx of transactions) {
-    if (!tx.synced) {
+async function replayMutations() {
+  try {
+    const db = await openDB();
+    const pending = await getPendingMutations(db);
+
+    for (const action of pending) {
       try {
-        const response = await fetch('/api/admin/pos/transaction', {
-          method: 'POST',
-          body: JSON.stringify(tx),
-          headers: { 'Content-Type': 'application/json' },
+        const response = await fetch(action.url, {
+          method: action.method,
+          headers: {
+            ...action.headers,
+            'Content-Type': 'application/json',
+            'X-Offline-Replay': 'true'
+          },
+          body: JSON.stringify(action.body)
         });
+
         if (response.ok) {
-          await db.put('transactions', { ...tx, synced: true });
+          await markActionSynced(db, action.id);
+          console.log('[SW] Replayed mutation:', action.method, action.url);
+
+          // Invalidate relevant cache after successful mutation
+          const cache = await caches.open(CACHE_NAME);
+          const urlObj = new URL(action.url, self.location.origin);
+
+          // Simple heuristic: if we post to /api/admin/inventory, clear GET /api/admin/inventory
+          if (urlObj.pathname.startsWith('/api/admin/')) {
+            const listUrl = urlObj.pathname.split('/').slice(0, 4).join('/');
+            await cache.delete(listUrl);
+          }
         }
-      } catch (error) {
-        console.error('Sync failed for transaction:', tx.id, error);
+      } catch (err) {
+        console.error('[SW] Failed to replay mutation:', action.id, err);
       }
     }
+  } catch (err) {
+    console.error('[SW] Replay error:', err);
   }
 }
