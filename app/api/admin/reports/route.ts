@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
         transactionCount,
         transactions,
         salesByPaymentMethod,
-        salesByDay,
+        allTransactionsInRange,
         topProducts,
         salesByUser,
       ] = await Promise.all([
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
           include: {
             user: { select: { name: true } },
             items: {
-              include: { product: { select: { name: true } } },
+              include: { product: { select: { name: true, category: true } } },
             },
           },
           orderBy: { createdAt: "desc" },
@@ -109,19 +109,25 @@ export async function GET(request: NextRequest) {
             createdAt: { gte: dateFrom, lte: dateTo },
           },
         }),
-        // Sales by day (for chart)
-        prisma.$queryRaw`
-          SELECT 
-            DATE(created_at) as date,
-            SUM(net_amount) as total,
-            COUNT(*) as count
-          FROM transactions
-          WHERE status = 'COMPLETED'
-            AND created_at >= ${dateFrom}
-            AND created_at <= ${dateTo}
-          GROUP BY DATE(created_at)
-          ORDER BY date ASC
-        `,
+        // All transactions in range for chart and additional analytics (database-agnostic)
+        prisma.transaction.findMany({
+          where: {
+            status: "COMPLETED",
+            createdAt: { gte: dateFrom, lte: dateTo },
+          },
+          select: {
+            createdAt: true,
+            netAmount: true,
+            clientName: true,
+            items: {
+              select: {
+                totalPrice: true,
+                product: { select: { category: true } },
+              },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        }),
         // Top selling products
         prisma.transactionItem.groupBy({
           by: ["productId"],
@@ -146,6 +152,42 @@ export async function GET(request: NextRequest) {
           },
         }),
       ])
+
+      // Group sales by day, category and customer in JS (database-agnostic)
+      const salesByDayMap = new Map<string, { date: string; total: number; count: number }>()
+      const salesByCategoryMap = new Map<string, { category: string; total: number; count: number }>()
+      const topCustomersMap = new Map<string, { name: string; total: number; count: number }>()
+
+      allTransactionsInRange.forEach((tx: any) => {
+        const dateStr = tx.createdAt.toISOString().split("T")[0]
+        const existingDay = salesByDayMap.get(dateStr) || { date: dateStr, total: 0, count: 0 }
+        existingDay.total += tx.netAmount
+        existingDay.count += 1
+        salesByDayMap.set(dateStr, existingDay)
+
+        // Group by category
+        tx.items.forEach((item: any) => {
+          const category = item.product?.category || "Uncategorized"
+          const existingCat = salesByCategoryMap.get(category) || { category, total: 0, count: 0 }
+          existingCat.total += item.totalPrice
+          existingCat.count += 1
+          salesByCategoryMap.set(category, existingCat)
+        })
+
+        // Group by customer
+        if (tx.clientName) {
+          const existingCust = topCustomersMap.get(tx.clientName) || { name: tx.clientName, total: 0, count: 0 }
+          existingCust.total += tx.netAmount
+          existingCust.count += 1
+          topCustomersMap.set(tx.clientName, existingCust)
+        }
+      })
+
+      const salesByDay = Array.from(salesByDayMap.values()).sort((a, b) => a.date.localeCompare(b.date))
+      const salesByCategory = Array.from(salesByCategoryMap.values()).sort((a, b) => b.total - a.total)
+      const topCustomers = Array.from(topCustomersMap.values())
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 10)
 
       // Get product names for top products
       const productIds = topProducts.map((p: any) => p.productId)
@@ -187,6 +229,8 @@ export async function GET(request: NextRequest) {
         },
         salesByPaymentMethod,
         salesByDay,
+        salesByCategory,
+        topCustomers,
         topProducts: topProductsWithNames,
         salesByUser: salesByUserWithNames,
         transactions,
@@ -194,6 +238,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (reportType === "inventory") {
+      // Get global low stock threshold
+      const settings = await prisma.settings.findFirst()
+      const lowStockThreshold = settings?.lowStockThreshold || 10
+
       // Inventory Report
       const [
         totalProducts,
@@ -214,7 +262,10 @@ export async function GET(request: NextRequest) {
         prisma.product.findMany({
           where: {
             isActive: true,
-            quantity: { gt: 0, lte: 10 },
+            quantity: {
+              gt: 0,
+              lte: lowStockThreshold
+            },
           },
           orderBy: { quantity: "asc" },
         }),
@@ -314,7 +365,7 @@ export async function GET(request: NextRequest) {
           items: {
             include: {
               product: {
-                select: { costPrice: true, name: true },
+                select: { costPrice: true, name: true, category: true },
               },
             },
           },
@@ -324,10 +375,14 @@ export async function GET(request: NextRequest) {
       let totalRevenue = 0
       let totalCost = 0
       const profitByProduct: Record<string, { name: string; revenue: number; cost: number; profit: number; quantity: number }> = {}
+      const profitByCategory: Record<string, { category: string; revenue: number; cost: number; profit: number }> = {}
 
       transactions.forEach((t: any) => {
         t.items.forEach((item: any) => {
-          const cost = (item.product?.costPrice || 0) * item.quantity
+          // Priority: 1. Item-specific costPrice (historical), 2. Current product costPrice, 3. Zero
+          const unitCost = item.costPrice !== null ? item.costPrice : (item.product?.costPrice || 0)
+          const cost = unitCost * item.quantity
+
           totalRevenue += item.totalPrice
           totalCost += cost
 
@@ -345,10 +400,27 @@ export async function GET(request: NextRequest) {
           profitByProduct[productId].cost += cost
           profitByProduct[productId].profit += item.totalPrice - cost
           profitByProduct[productId].quantity += item.quantity
+
+          const category = item.product?.category || "Uncategorized"
+          if (!profitByCategory[category]) {
+            profitByCategory[category] = {
+              category,
+              revenue: 0,
+              cost: 0,
+              profit: 0,
+            }
+          }
+          profitByCategory[category].revenue += item.totalPrice
+          profitByCategory[category].cost += cost
+          profitByCategory[category].profit += item.totalPrice - cost
         })
       })
 
       const profitByProductArray = Object.values(profitByProduct).sort(
+        (a, b) => b.profit - a.profit
+      )
+
+      const profitByCategoryArray = Object.values(profitByCategory).sort(
         (a, b) => b.profit - a.profit
       )
 
@@ -364,7 +436,8 @@ export async function GET(request: NextRequest) {
           profitMargin: totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue) * 100 : 0,
           transactionCount: transactions.length,
         },
-        profitByProduct: profitByProductArray.slice(0, 20),
+        profitByProduct: profitByProductArray.slice(0, 50),
+        profitByCategory: profitByCategoryArray,
       })
     }
 
