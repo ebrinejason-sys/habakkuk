@@ -13,8 +13,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
 import { formatCurrency, generateTransactionNo } from "@/lib/utils"
-import { Search, ShoppingCart, Trash2, Printer, Clock, Eye, Calculator, Package } from "lucide-react"
-import { queueMutation } from "@/lib/offlineStorage"
+import { Search, ShoppingCart, Trash2, Printer, Clock, Eye, Calculator, Package, Wifi, WifiOff, Download } from "lucide-react"
+import { queueMutation, saveOfflineTransaction, getPendingActions, saveMetadata, getMetadata } from "@/lib/offlineStorage"
 
 // Debounce hook for search
 function useDebounce<T>(value: T, delay: number): T {
@@ -97,7 +97,8 @@ interface StaffMember {
 }
 
 export default function POSPage() {
-  const { data: session } = useSession()
+  const { data: session: nextAuthSession } = useSession()
+  const [session, setSession] = useState<any>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -124,13 +125,43 @@ export default function POSPage() {
   const [isSavingClientDetailsBeforeSale, setIsSavingClientDetailsBeforeSale] = useState(false)
   const [printReceiptData, setPrintReceiptData] = useState<any>(null)
   const [isPrintingReceipt, setIsPrintingReceipt] = useState(false)
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true)
+  const [pendingSyncCount, setPendingSyncCount] = useState(0)
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const { toast } = useToast()
 
   // Debounce search query for better performance
   const debouncedSearchQuery = useDebounce(searchQuery, 300)
 
+  useEffect(() => {
+    if (nextAuthSession) {
+      setSession(nextAuthSession)
+      localStorage.setItem('pos-session', JSON.stringify(nextAuthSession))
+    } else if (!session) {
+      const cachedSession = localStorage.getItem('pos-session')
+      if (cachedSession) {
+        try {
+          setSession(JSON.parse(cachedSession))
+        } catch (e) {
+          console.error('Failed to parse cached session:', e)
+        }
+      }
+    }
+  }, [nextAuthSession, session])
+
   // Load cart from localStorage on mount
   useEffect(() => {
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault()
+      setDeferredPrompt(e)
+    }
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+
     const savedCart = localStorage.getItem('pos-cart')
     if (savedCart) {
       try {
@@ -142,7 +173,35 @@ export default function POSPage() {
     fetchProducts()
     fetchSettings()
     fetchStaffMembers()
+    updatePendingSyncCount()
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    }
   }, [])
+
+  const updatePendingSyncCount = async () => {
+    const pending = await getPendingActions()
+    setPendingSyncCount(pending.length)
+  }
+
+  // Check for sync updates periodically or when online status changes
+  useEffect(() => {
+    const interval = setInterval(updatePendingSyncCount, 10000)
+    updatePendingSyncCount()
+    return () => clearInterval(interval)
+  }, [isOnline])
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return
+    deferredPrompt.prompt()
+    const { outcome } = await deferredPrompt.userChoice
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null)
+    }
+  }
 
   // Save cart to localStorage whenever it changes
   useEffect(() => {
@@ -172,47 +231,80 @@ export default function POSPage() {
   }
 
   // Check if current user is HABAKKUK master account
-  const isHabakkukAccount = session?.user?.name === "HABAKKUK" || session?.user?.email === "habakkuk@habakkukpharmacy.com"
+  const isHabakkukAccount = useMemo(() => {
+    return session?.user?.name === "HABAKKUK" || session?.user?.email === "habakkuk@habakkukpharmacy.com"
+  }, [session])
 
   const fetchStaffMembers = async () => {
     try {
-      // Use dedicated staff-list endpoint that doesn't require admin role
-      const response = await fetch("/api/admin/staff-list")
-      if (response.ok) {
-        const data = await response.json()
-        setStaffMembers(data)
+      if (navigator.onLine) {
+        const response = await fetch("/api/admin/staff-list")
+        if (response.ok) {
+          const data = await response.json()
+          setStaffMembers(data)
+          saveMetadata('staff-members', data)
+          return
+        }
       }
+      // Offline fallback
+      const cachedStaff = await getMetadata('staff-members')
+      if (cachedStaff) setStaffMembers(cachedStaff)
     } catch (error) {
       console.error("Failed to fetch staff:", error)
+      const cachedStaff = await getMetadata('staff-members')
+      if (cachedStaff) setStaffMembers(cachedStaff)
     }
   }
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch("/api/admin/settings")
-      if (response.ok) {
-        const data = await response.json()
-        setSettings(data)
+      if (navigator.onLine) {
+        const response = await fetch("/api/admin/settings")
+        if (response.ok) {
+          const data = await response.json()
+          setSettings(data)
+          saveMetadata('settings', data)
+          return
+        }
       }
+      // Offline fallback
+      const cachedSettings = await getMetadata('settings')
+      if (cachedSettings) setSettings(cachedSettings)
     } catch (error) {
       console.error("Failed to fetch settings:", error)
+      const cachedSettings = await getMetadata('settings')
+      if (cachedSettings) setSettings(cachedSettings)
     }
   }
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch("/api/admin/inventory")
-      if (!response.ok) throw new Error('Failed to fetch products')
-      const data = await response.json()
-      setProducts(Array.isArray(data) ? data : [])
+      if (navigator.onLine) {
+        const response = await fetch("/api/admin/inventory")
+        if (response.ok) {
+          const data = await response.json()
+          const productList = Array.isArray(data) ? data : []
+          setProducts(productList)
+          saveMetadata('products', productList)
+          return
+        }
+        throw new Error('Failed to fetch products')
+      }
+      // Offline fallback
+      const cachedProducts = await getMetadata('products')
+      if (cachedProducts) setProducts(cachedProducts)
     } catch (error) {
       console.error("Failed to fetch products:", error)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to fetch products",
-      })
-      setProducts([])
+      const cachedProducts = await getMetadata('products')
+      if (cachedProducts) setProducts(cachedProducts)
+
+      if (navigator.onLine) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to fetch products",
+        })
+      }
     }
   }
 
@@ -382,7 +474,10 @@ export default function POSPage() {
       ? staffForReceipt.id
       : session?.user?.id
 
+    const txnNo = generateTransactionNo()
+
     const transactionPayload = {
+      transactionNo: txnNo,
       items: cart.map((item) => ({
         productId: item.id,
         quantity: item.baseUnitsTotal || item.cartQuantity,
@@ -403,6 +498,37 @@ export default function POSPage() {
     if (!navigator.onLine) {
       // Offline: Store locally and queue for sync
       try {
+        // Create mock transaction for printing
+        const mockTransaction = {
+          id: `offline-${Date.now()}`,
+          transactionNo: txnNo,
+          createdAt: new Date().toISOString(),
+          clientName: client.name,
+          clientPhone: client.phone,
+          clientAddress: client.address,
+          totalAmount: total,
+          tax: taxAmount,
+          netAmount: grandTotal,
+          paymentMethod,
+          items: cart.map((item, idx) => ({
+            id: `item-${idx}`,
+            quantity: item.baseUnitsTotal || item.cartQuantity,
+            unitPrice: item.sellingPrice,
+            totalPrice: item.subtotal,
+            packageName: item.selectedPackage?.name || null,
+            packageQuantity: item.packageQuantity || null,
+            product: {
+              name: item.name,
+              sku: item.sku
+            },
+            batch: item.batchNumber ? {
+              batchNumber: item.batchNumber,
+              expiryDate: item.expiryDate
+            } : null
+          }))
+        }
+
+        await saveOfflineTransaction(mockTransaction)
         await queueMutation("/api/admin/pos/transaction", "POST", transactionPayload);
 
         // Register sync via service worker if available
@@ -417,11 +543,18 @@ export default function POSPage() {
           description: "Transaction saved locally. Will sync when online.",
         });
 
+        // Set pending for printing
+        setPendingTransaction(mockTransaction)
+        setReceiptStaffNamePending(receiptStaffName)
+        setPendingReceiptMeta({ paymentMethod, amountPaid, change })
+        setShowPrintPrompt(true)
+
         // Clear cart and proceed as if successful
         setCart([]);
         localStorage.removeItem('pos-cart');
         setSelectedStaff(null);
         setAmountPaid("");
+        // We can't really fetchProducts while offline, but we can try
         fetchProducts();
       } catch (err) {
         toast({
@@ -605,16 +738,48 @@ export default function POSPage() {
         </div>
       )}
 
-      <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Point of Sale</h1>
-        <p className="text-gray-500 mt-1 sm:mt-2 text-sm sm:text-base">
-          Process sales and generate receipts
-          {isHabakkukAccount && selectedStaff && (
-            <span className="ml-2 text-primary font-medium">
-              • Selling as: {selectedStaff.name}
-            </span>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Point of Sale</h1>
+          <p className="text-gray-500 mt-1 sm:mt-2 text-sm sm:text-base">
+            Process sales and generate receipts
+            {isHabakkukAccount && selectedStaff && (
+              <span className="ml-2 text-primary font-medium">
+                • Selling as: {selectedStaff.name}
+              </span>
+            )}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {deferredPrompt && (
+            <Button
+              onClick={handleInstallClick}
+              variant="outline"
+              size="sm"
+              className="bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Install POS
+            </Button>
           )}
-        </p>
+
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border ${isOnline ? 'bg-green-50 border-green-200 text-green-700' : 'bg-orange-50 border-orange-200 text-orange-700'
+            }`}>
+            {isOnline ? (
+              <><Wifi className="h-3 w-3" /> Online</>
+            ) : (
+              <><WifiOff className="h-3 w-3" /> Offline Mode</>
+            )}
+          </div>
+
+          {pendingSyncCount > 0 && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-50 border border-blue-200 text-blue-700 animate-pulse">
+              <Clock className="h-3 w-3" />
+              {pendingSyncCount} pending sync
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Staff Selection Dialog for HABAKKUK account */}

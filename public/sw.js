@@ -15,10 +15,11 @@ const STATIC_ASSETS = [
 // IndexedDB Helpers (Native API for SW compatibility)
 const DB_NAME = 'habakkuk-offline';
 const STORE_NAME = 'sync_queue';
+const METADATA_STORE = 'metadata';
 
 function openDB() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 2);
+    const request = indexedDB.open(DB_NAME, 3);
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
       if (!db.objectStoreNames.contains('transactions')) {
@@ -26,6 +27,9 @@ function openDB() {
       }
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(METADATA_STORE)) {
+        db.createObjectStore(METADATA_STORE);
       }
     };
     request.onsuccess = () => resolve(request.result);

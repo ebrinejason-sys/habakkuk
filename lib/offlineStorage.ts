@@ -2,7 +2,8 @@ import { openDB, IDBPDatabase } from 'idb';
 
 const DB_NAME = 'habakkuk-offline';
 const STORE_NAME = 'sync_queue';
-const DB_VERSION = 2; // Upgraded version
+const METADATA_STORE = 'metadata';
+const DB_VERSION = 3; // Upgraded version to include metadata store
 
 export interface QueuedAction {
   id: string;
@@ -28,6 +29,11 @@ export const getDB = () => {
         if (oldVersion < 2) {
           if (!db.objectStoreNames.contains(STORE_NAME)) {
             db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+          }
+        }
+        if (oldVersion < 3) {
+          if (!db.objectStoreNames.contains(METADATA_STORE)) {
+            db.createObjectStore(METADATA_STORE);
           }
         }
       },
@@ -80,4 +86,28 @@ export const markActionSynced = async (id: string) => {
     action.synced = true;
     await db.put(STORE_NAME, action);
   }
+};
+
+export const saveOfflineTransaction = async (transaction: any) => {
+  const db = await getDB();
+  if (!db) return;
+  await db.put('transactions', transaction);
+};
+
+export const getOfflineTransaction = async (id: string) => {
+  const db = await getDB();
+  if (!db) return null;
+  return await db.get('transactions', id);
+};
+
+export const saveMetadata = async (key: string, data: any) => {
+  const db = await getDB();
+  if (!db) return;
+  await db.put(METADATA_STORE, data, key);
+};
+
+export const getMetadata = async (key: string) => {
+  const db = await getDB();
+  if (!db) return null;
+  return await db.get(METADATA_STORE, key);
 };
