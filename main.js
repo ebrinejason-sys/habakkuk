@@ -18,6 +18,10 @@ function getUnpackedRoot() {
     return app.isPackaged ? app.getAppPath() : __dirname;
 }
 
+function getPackagedRuntimeRoot() {
+    return path.join(getInstallRoot(), 'app-runtime');
+}
+
 function getInstallRoot() {
     // This points to where extraResources are (e.g., next to the .exe)
     return app.isPackaged ? path.dirname(path.dirname(app.getAppPath())) : __dirname;
@@ -52,7 +56,7 @@ function loadEnv() {
 
     // Set DATABASE_URL to exactly where the database is stored
     const dbPath = getDatabasePath().replace(/\\/g, '/');
-    process.env.DATABASE_URL = `file:///${dbPath}`;
+    process.env.DATABASE_URL = `file:${dbPath}`;
 
     console.log(`[Desktop] Environment loaded. DB: ${process.env.DATABASE_URL}`);
 }
@@ -157,13 +161,21 @@ function startNextJsServer() {
     };
 
     if (app.isPackaged) {
-        const standaloneDir = path.join(unpackedRoot, '.next', 'standalone');
+        const runtimeRoot = getPackagedRuntimeRoot();
+        const standaloneDir = path.join(runtimeRoot, '.next', 'standalone');
         const serverJs = path.join(standaloneDir, 'server.js');
         const runnerPath = resolveNodeRunnerPath();
 
         if (!fs.existsSync(serverJs)) {
             const { dialog } = require('electron');
             dialog.showErrorBox('Build Error', `Standalone server not found at:\n${serverJs}`);
+            app.quit();
+            return;
+        }
+
+        if (!fs.existsSync(standaloneDir)) {
+            const { dialog } = require('electron');
+            dialog.showErrorBox('Build Error', `Standalone directory not found at:\n${standaloneDir}`);
             app.quit();
             return;
         }
@@ -179,6 +191,7 @@ function startNextJsServer() {
         const outStream = fs.createWriteStream(logPath, { flags: 'a' });
 
         console.log(`[Desktop] Starting Standalone server on port ${PORT} with runner: ${runnerPath}`);
+        console.log(`[Desktop] Runtime root: ${runtimeRoot}`);
 
         nextProcess = spawn(runnerPath, [serverJs], {
             cwd: standaloneDir,

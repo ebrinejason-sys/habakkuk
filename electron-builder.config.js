@@ -59,6 +59,16 @@ module.exports = {
     // Extra files placed OUTSIDE the app.asar (at the root alongside the exe)
     extraResources: [
         {
+            from: '.next/standalone',
+            to: '../app-runtime/.next/standalone',
+            filter: ['**/*'],
+        },
+        {
+            from: '.next/static',
+            to: '../app-runtime/.next/static',
+            filter: ['**/*'],
+        },
+        {
             from: 'prisma/template.db',
             to: '../prisma/template.db',
         },
@@ -73,6 +83,11 @@ module.exports = {
         {
             from: 'public',
             to: '../public',
+            filter: ['**/*'],
+        },
+        {
+            from: 'public',
+            to: '../app-runtime/public',
             filter: ['**/*'],
         },
     ],
