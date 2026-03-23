@@ -13,7 +13,9 @@
  *   - Internet connection
  */
 
-import { prisma } from "../lib/prisma";
+import { PrismaClient } from "@prisma/client-sqlite";
+
+const prisma = new PrismaClient();
 
 const SYNC_SERVER_URL = process.env.SYNC_SERVER_URL || "https://habakkukpharmacy.com";
 const SYNC_API_KEY = process.env.SYNC_API_KEY || "";

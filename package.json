@@ -28,8 +28,8 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "build:vercel": "next build",
+    "build": "next build --webpack",
+    "build:vercel": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -43,10 +43,10 @@
     "db:desktop:setup": "node scripts/use-sqlite-schema.js && prisma generate --schema=prisma/schema.sqlite.prisma && prisma db push --schema=prisma/schema.sqlite.prisma --accept-data-loss && tsx prisma/seed.desktop.ts",
     "db:desktop:reset": "node scripts/use-sqlite-schema.js && prisma db push --schema=prisma/schema.sqlite.prisma --force-reset && tsx prisma/seed.desktop.ts",
     "db:desktop:template": "node scripts/generate-template-db.js",
-    "sync:initial": "tsx scripts/initial-sync.ts",
+    "sync:initial": "cross-env NEXT_PUBLIC_IS_DESKTOP=true DATABASE_URL=file:./prisma/dev.db tsx scripts/initial-sync.ts",
     "desktop:prepare": "prisma generate --schema=prisma/schema.sqlite.prisma",
     "desktop:dev": "npm run env:ensure && npm run desktop:prepare && node scripts/start-desktop.js",
-    "desktop:build": "npm run env:ensure && npm run desktop:prepare && cross-env NEXT_PUBLIC_IS_DESKTOP=true DATABASE_URL=file:./dev.db next build && electron-builder",
+    "desktop:build": "npm run env:ensure && npm run desktop:prepare && cross-env NEXT_PUBLIC_IS_DESKTOP=true DATABASE_URL=file:./dev.db next build --webpack && electron-builder",
     "desktop:build:data": "node scripts/build-with-data.js",
     "desktop:package": "npm run env:ensure && npm run desktop:prepare && npm run db:desktop:template && electron-builder --win --x64 --config electron-builder.config.js",
     "desktop": "npm run desktop:dev",
@@ -54,6 +54,7 @@
     "desktop:exe": "npm run build && npm run build:exe"
   },
   "dependencies": {
+    "@next/swc-win32-x64-msvc": "16.1.1",
     "@prisma/client": "^5.22.0",
     "@radix-ui/react-alert-dialog": "^1.1.2",
     "@radix-ui/react-avatar": "^1.1.1",
@@ -86,7 +87,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@types/bcryptjs": "^2.4.6",
-    "@types/node": "^22",
+    "@types/node": "^25.5.0",
     "@types/papaparse": "^5.3.15",
     "@types/react": "^19",
     "@types/react-dom": "^19",

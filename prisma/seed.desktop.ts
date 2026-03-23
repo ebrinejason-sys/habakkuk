@@ -8,7 +8,9 @@
  * Note: SQLite schema uses permissions as a comma-separated String, not an array.
  */
 import bcrypt from 'bcryptjs'
-import { prisma } from '../lib/prisma'
+import { PrismaClient } from '@prisma/client-sqlite'
+
+const prisma = new PrismaClient()
 
 async function main() {
     console.log('🌱 Seeding desktop SQLite database...')
