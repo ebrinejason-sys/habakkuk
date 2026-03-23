@@ -150,19 +150,62 @@
 }
 
 @media print {
-  body * {
-    visibility: hidden;
+  html,
+  body {
+    height: auto;
+    overflow: visible !important;
+    background: #fff;
   }
+
+  body * {
+    visibility: hidden !important;
+  }
+
   .print-area,
   .print-area * {
-    visibility: visible;
+    visibility: visible !important;
   }
+
   .print-area {
-    position: absolute;
-    left: 0;
-    top: 0;
+    position: static !important;
+    left: auto;
+    top: auto;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
   }
+
+  .print-sheet {
+    width: 190mm !important;
+    max-width: 190mm !important;
+    margin: 0 auto !important;
+    box-sizing: border-box;
+  }
+
+  .print-area table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .print-area thead {
+    display: table-header-group;
+  }
+
+  .print-area tfoot {
+    display: table-footer-group;
+  }
+
+  .print-area tr,
+  .print-area td,
+  .print-area th {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
   @page {
-    margin: 0;
+    size: A4 portrait;
+    margin: 10mm;
   }
 }

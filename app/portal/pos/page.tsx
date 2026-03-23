@@ -162,6 +162,15 @@ export default function POSPage() {
     return () => window.removeEventListener("afterprint", handleAfterPrint)
   }, [])
 
+  const triggerReliablePrint = () => {
+    // Wait for React to paint the print tree before opening the print dialog.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setTimeout(() => window.print(), 50)
+      })
+    })
+  }
+
   // Check if current user is HABAKKUK master account
   const isHabakkukAccount = session?.user?.name === "HABAKKUK" || session?.user?.email === "habakkuk@habakkukpharmacy.com"
 
@@ -541,7 +550,7 @@ export default function POSPage() {
       settings,
     })
     setIsPrintingReceipt(true)
-    requestAnimationFrame(() => window.print())
+    triggerReliablePrint()
 
     resetPendingPrintFlow()
   }
@@ -586,7 +595,7 @@ export default function POSPage() {
   return (
     <div>
       {isPrintingReceipt && printReceiptData && (
-        <div className="print-area fixed inset-0 z-[9999] bg-white p-4 overflow-auto">
+        <div className="print-area fixed inset-0 z-[9999] bg-white p-4 overflow-visible">
           <TransactionReceipt
             transaction={printReceiptData.transaction}
             staffName={printReceiptData.staffName}
@@ -1412,7 +1421,11 @@ function ReceiptPreviewDialog({
   const currentDate = new Date()
 
   const handlePrint = () => {
-    requestAnimationFrame(() => window.print())
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setTimeout(() => window.print(), 50)
+      })
+    })
   }
 
   return (
@@ -1476,7 +1489,7 @@ function ReceiptPreviewDialog({
                 </thead>
                 <tbody>
                   {cart.map((item) => (
-                    <tr key={item.id} className="border-b border-gray-300">
+                    <tr key={item.id} className="border-b border-gray-300 print-no-break">
                       <td className="py-1 px-2">
                         <span className="font-medium text-[10px]">{item.name}</span>
                         {item.sku && <span className="text-[8px] text-gray-600 block">{item.sku}</span>}
@@ -1579,7 +1592,7 @@ function TransactionReceipt({
   const payment = meta?.paymentMethod || transaction?.paymentMethod || ""
 
   return (
-    <div className="mx-auto max-w-[210mm] text-black">
+    <div className="print-sheet mx-auto w-full text-black">
       <div className="border border-black p-4 bg-white text-black">
         <div className="text-center border-b border-dashed border-black pb-2 mb-2">
           {settings?.logo && (
@@ -1640,7 +1653,7 @@ function TransactionReceipt({
             </thead>
             <tbody>
               {items.map((item: any) => (
-                <tr key={item.id} className="border-b border-gray-300">
+                <tr key={item.id} className="border-b border-gray-300 print-no-break">
                   <td className="py-1 px-2">
                     <span className="font-medium text-[10px]">{item.product?.name || "-"}</span>
                     {item.product?.sku && <span className="text-[8px] text-gray-600 block">{item.product.sku}</span>}
