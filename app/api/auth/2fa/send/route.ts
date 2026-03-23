@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { Resend } from "resend"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Lazy instance — avoids throwing at module load time when key is absent
+let _resend: Resend | null = null
+function getResend(): Resend {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY || 'placeholder')
+  return _resend
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,7 +49,7 @@ export async function POST(request: NextRequest) {
     const recipientEmail = user.twoFactorEmail || user.email
     const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@habakkukpharmacy.com'
 
-    await resend.emails.send({
+    await getResend().emails.send({
       from: `Habakkuk Pharmacy <${fromEmail}>`,
       to: recipientEmail,
       subject: "Your 2FA Verification Code - Habakkuk Pharmacy",

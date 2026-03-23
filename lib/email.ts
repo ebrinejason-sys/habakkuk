@@ -1,6 +1,13 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Lazy instance — avoids throwing at module load time when key is absent
+let _resend: Resend | null = null
+function getResend(): Resend {
+  if (!_resend) {
+    _resend = new Resend(process.env.RESEND_API_KEY || 'placeholder')
+  }
+  return _resend
+}
 
 interface SendEmailParams {
   to: string
@@ -11,7 +18,7 @@ interface SendEmailParams {
 export async function sendEmail({ to, subject, html }: SendEmailParams) {
   try {
     const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@habakkukpharmacy.com'
-    const data = await resend.emails.send({
+    const data = await getResend().emails.send({
       from: `Habakkuk Pharmacy <${fromEmail}>`,
       to,
       subject,
