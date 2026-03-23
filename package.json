@@ -54,7 +54,6 @@
     "desktop:exe": "npm run build && npm run build:exe"
   },
   "dependencies": {
-    "@next/swc-win32-x64-msvc": "16.1.1",
     "@prisma/client": "^5.22.0",
     "@radix-ui/react-alert-dialog": "^1.1.2",
     "@radix-ui/react-avatar": "^1.1.1",
@@ -106,5 +105,8 @@
     "typescript": "^5",
     "wait-on": "^9.0.4",
     "xlsx": "^0.18.5"
+  },
+  "optionalDependencies": {
+    "@next/swc-win32-x64-msvc": "16.1.1"
   }
 }
