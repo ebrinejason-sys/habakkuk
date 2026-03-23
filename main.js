@@ -128,6 +128,23 @@ function waitForNextJs(callback, attempts = 0) {
     });
 }
 
+function resolveNodeRunnerPath() {
+    const candidates = [
+        process.execPath,
+        app.getPath('exe'),
+        path.join(getInstallRoot(), 'habakkuk-pharmacy-pos.exe'),
+        path.join(getInstallRoot(), 'Habakkuk Pharmacy POS.exe'),
+    ];
+
+    for (const candidate of candidates) {
+        if (candidate && fs.existsSync(candidate)) {
+            return candidate;
+        }
+    }
+
+    return process.execPath;
+}
+
 // ── Start Next.js Server ─────────────────────────────────────────────────────
 function startNextJsServer() {
     const unpackedRoot = getUnpackedRoot();
@@ -142,6 +159,7 @@ function startNextJsServer() {
     if (app.isPackaged) {
         const standaloneDir = path.join(unpackedRoot, '.next', 'standalone');
         const serverJs = path.join(standaloneDir, 'server.js');
+        const runnerPath = resolveNodeRunnerPath();
 
         if (!fs.existsSync(serverJs)) {
             const { dialog } = require('electron');
@@ -150,12 +168,19 @@ function startNextJsServer() {
             return;
         }
 
+        if (!fs.existsSync(runnerPath)) {
+            const { dialog } = require('electron');
+            dialog.showErrorBox('Next.js Start Error', `Runtime executable not found at:\n${runnerPath}`);
+            app.quit();
+            return;
+        }
+
         const logPath = path.join(app.getPath('userData'), 'nextjs-error.log');
         const outStream = fs.createWriteStream(logPath, { flags: 'a' });
 
-        console.log(`[Desktop] Starting Standalone server on port ${PORT}...`);
+        console.log(`[Desktop] Starting Standalone server on port ${PORT} with runner: ${runnerPath}`);
 
-        nextProcess = spawn(process.execPath, [serverJs], {
+        nextProcess = spawn(runnerPath, [serverJs], {
             cwd: standaloneDir,
             env,
             stdio: ['ignore', 'pipe', 'pipe'],
