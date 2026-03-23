@@ -40,11 +40,28 @@ interface AdminLayoutProps {
 }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
-  const { data: session } = useSession()
+  const { data: nextAuthSession } = useSession()
+  const [session, setSession] = useState<any>(null)
   const pathname = usePathname()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isOnline, setIsOnline] = useState(true)
   const [syncStatus, setSyncStatus] = useState<{ pending: number; lastSync: string | null }>({ pending: 0, lastSync: null })
+
+  useEffect(() => {
+    if (nextAuthSession) {
+      setSession(nextAuthSession)
+      localStorage.setItem('pos-session', JSON.stringify(nextAuthSession))
+    } else if (!session) {
+      const cached = localStorage.getItem('pos-session')
+      if (cached) {
+        try {
+          setSession(JSON.parse(cached))
+        } catch (e) {
+          console.error('Failed to parse cached session:', e)
+        }
+      }
+    }
+  }, [nextAuthSession, session])
 
   useEffect(() => {
     setIsOnline(navigator.onLine)

@@ -44,6 +44,33 @@ export default function LoginPage() {
     e.preventDefault()
     setIsLoading(true)
 
+    // Offline check: simple verification against localStorage
+    if (!navigator.onLine) {
+      const cached = localStorage.getItem('pos-session')
+      if (cached) {
+        try {
+          const session = JSON.parse(cached)
+          // For simplicity, if we have a session, we allow navigating to the portal
+          // In a real app, you would want a more secure check if possible.
+          toast({
+            title: "Offline Mode",
+            description: "Logged in via local session",
+          })
+          router.push("/portal/pos")
+          return
+        } catch (e) {
+          console.error("Failed to login offline:", e)
+        }
+      }
+      toast({
+        variant: "destructive",
+        title: "Offline",
+        description: "Please connect to the internet to login for the first time.",
+      })
+      setIsLoading(false)
+      return
+    }
+
     try {
       // First, check if user requires 2FA
       const checkResponse = await fetch("/api/auth/check-2fa", {

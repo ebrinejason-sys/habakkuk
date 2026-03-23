@@ -6,6 +6,10 @@ const STATIC_ASSETS = [
   '/portal/pos',
   '/portal/inventory',
   '/portal/customers',
+  '/portal/orders',
+  '/portal/transactions',
+  '/portal/reports',
+  '/portal/settings',
   '/manifest.json',
   '/logo.png',
   '/favicon.ico',
@@ -111,6 +115,24 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => {
           return caches.match(request);
+        })
+    );
+    return;
+  }
+
+  // Navigation requests: Network-first with cache fallback
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseToCache);
+          });
+          return networkResponse;
+        })
+        .catch(() => {
+          return caches.match(request) || caches.match('/portal/pos');
         })
     );
     return;
