@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { items, paymentMethod, staffId, staffName, clientName, clientPhone, clientAddress } = await request.json()
+    const { items, paymentMethod, staffId, staffName, clientName, clientPhone, clientAddress, transactionNo } = await request.json()
 
     if (!items || items.length === 0) {
       return NextResponse.json({ error: "No items in cart" }, { status: 400 })
@@ -206,7 +206,7 @@ export async function POST(request: NextRequest) {
       // Create transaction
       const transaction = await tx.transaction.create({
         data: {
-          transactionNo: generateTransactionNo(),
+          transactionNo: transactionNo || generateTransactionNo(),
           userId: transactionUserId,
           clientName: clientName || null,
           clientPhone: clientPhone || null,

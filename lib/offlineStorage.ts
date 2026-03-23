@@ -81,3 +81,15 @@ export const markActionSynced = async (id: string) => {
     await db.put(STORE_NAME, action);
   }
 };
+
+export const saveOfflineTransaction = async (transaction: any) => {
+  const db = await getDB();
+  if (!db) return;
+  await db.put('transactions', transaction);
+};
+
+export const getOfflineTransaction = async (id: string) => {
+  const db = await getDB();
+  if (!db) return null;
+  return await db.get('transactions', id);
+};
