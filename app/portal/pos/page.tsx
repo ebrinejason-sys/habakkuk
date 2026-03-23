@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast"
 import { formatCurrency, generateTransactionNo } from "@/lib/utils"
 import { Search, ShoppingCart, Trash2, Printer, Clock, Eye, Calculator, Package, Wifi, WifiOff, Download } from "lucide-react"
-import { queueMutation, saveOfflineTransaction, getPendingActions } from "@/lib/offlineStorage"
+import { queueMutation, saveOfflineTransaction, getPendingActions, saveMetadata, getMetadata } from "@/lib/offlineStorage"
 
 // Debounce hook for search
 function useDebounce<T>(value: T, delay: number): T {
@@ -97,7 +97,8 @@ interface StaffMember {
 }
 
 export default function POSPage() {
-  const { data: session } = useSession()
+  const { data: session: nextAuthSession } = useSession()
+  const [session, setSession] = useState<any>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -131,6 +132,22 @@ export default function POSPage() {
 
   // Debounce search query for better performance
   const debouncedSearchQuery = useDebounce(searchQuery, 300)
+
+  useEffect(() => {
+    if (nextAuthSession) {
+      setSession(nextAuthSession)
+      localStorage.setItem('pos-session', JSON.stringify(nextAuthSession))
+    } else if (!session) {
+      const cachedSession = localStorage.getItem('pos-session')
+      if (cachedSession) {
+        try {
+          setSession(JSON.parse(cachedSession))
+        } catch (e) {
+          console.error('Failed to parse cached session:', e)
+        }
+      }
+    }
+  }, [nextAuthSession, session])
 
   // Load cart from localStorage on mount
   useEffect(() => {
@@ -214,42 +231,73 @@ export default function POSPage() {
   }
 
   // Check if current user is HABAKKUK master account
-  const isHabakkukAccount = session?.user?.name === "HABAKKUK" || session?.user?.email === "habakkuk@habakkukpharmacy.com"
+  const isHabakkukAccount = useMemo(() => {
+    return session?.user?.name === "HABAKKUK" || session?.user?.email === "habakkuk@habakkukpharmacy.com"
+  }, [session])
 
   const fetchStaffMembers = async () => {
     try {
-      // Use dedicated staff-list endpoint that doesn't require admin role
-      const response = await fetch("/api/admin/staff-list")
-      if (response.ok) {
-        const data = await response.json()
-        setStaffMembers(data)
+      if (navigator.onLine) {
+        const response = await fetch("/api/admin/staff-list")
+        if (response.ok) {
+          const data = await response.json()
+          setStaffMembers(data)
+          saveMetadata('staff-members', data)
+          return
+        }
       }
+      // Offline fallback
+      const cachedStaff = await getMetadata('staff-members')
+      if (cachedStaff) setStaffMembers(cachedStaff)
     } catch (error) {
       console.error("Failed to fetch staff:", error)
+      const cachedStaff = await getMetadata('staff-members')
+      if (cachedStaff) setStaffMembers(cachedStaff)
     }
   }
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch("/api/admin/settings")
-      if (response.ok) {
-        const data = await response.json()
-        setSettings(data)
+      if (navigator.onLine) {
+        const response = await fetch("/api/admin/settings")
+        if (response.ok) {
+          const data = await response.json()
+          setSettings(data)
+          saveMetadata('settings', data)
+          return
+        }
       }
+      // Offline fallback
+      const cachedSettings = await getMetadata('settings')
+      if (cachedSettings) setSettings(cachedSettings)
     } catch (error) {
       console.error("Failed to fetch settings:", error)
+      const cachedSettings = await getMetadata('settings')
+      if (cachedSettings) setSettings(cachedSettings)
     }
   }
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch("/api/admin/inventory")
-      if (!response.ok) throw new Error('Failed to fetch products')
-      const data = await response.json()
-      setProducts(Array.isArray(data) ? data : [])
+      if (navigator.onLine) {
+        const response = await fetch("/api/admin/inventory")
+        if (response.ok) {
+          const data = await response.json()
+          const productList = Array.isArray(data) ? data : []
+          setProducts(productList)
+          saveMetadata('products', productList)
+          return
+        }
+        throw new Error('Failed to fetch products')
+      }
+      // Offline fallback
+      const cachedProducts = await getMetadata('products')
+      if (cachedProducts) setProducts(cachedProducts)
     } catch (error) {
       console.error("Failed to fetch products:", error)
-      // Don't clear products on network error, especially when offline
+      const cachedProducts = await getMetadata('products')
+      if (cachedProducts) setProducts(cachedProducts)
+
       if (navigator.onLine) {
         toast({
           variant: "destructive",
