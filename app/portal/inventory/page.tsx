@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
+import { useSession } from "next-auth/react"
 
 // Debounce hook for better INP performance
 function useDebounce<T>(value: T, delay: number): T {
@@ -20,7 +21,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
-import { Plus, Upload, Search, Edit, AlertTriangle, Package, PackagePlus, X, ChevronDown, ChevronUp } from "lucide-react"
+import { Plus, Upload, Search, Edit, AlertTriangle, Package, PackagePlus, X, Trash2, ChevronDown, ChevronUp } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { resilientFetch } from "@/lib/api"
 
@@ -1008,6 +1009,29 @@ function EditProductDialog({ product, onClose, onSuccess }: EditProductDialogPro
 
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
+  const { data: session } = useSession()
+  const handleDelete = async () => {
+    if (!confirm(`Are you sure you want to delete ${product.name}?`)) return
+
+    setIsLoading(true)
+    try {
+      const response = await resilientFetch(`/api/admin/inventory?id=${product.id}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        toast({ title: "Success", description: "Product deleted successfully" })
+        onSuccess()
+      } else {
+        const data = await response.json()
+        toast({ variant: "destructive", title: "Error", description: data.error || "Failed to delete product" })
+      }
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: "An error occurred" })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const calculatePackagePrice = (unitsPerPackage: string): string => {
     const units = parseFloat(unitsPerPackage) || 0
@@ -1263,6 +1287,12 @@ function EditProductDialog({ product, onClose, onSuccess }: EditProductDialogPro
             </div>
 
             <div className="flex justify-end space-x-2 pt-4 border-t">
+              {(session?.user?.role === "ADMIN" || session?.user?.role === "CEO") && (
+                <Button type="button" variant="destructive" onClick={handleDelete} disabled={isLoading} className="mr-auto">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Product
+                </Button>
+              )}
               <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
               <Button type="submit" disabled={isLoading}>{isLoading ? "Saving..." : "Save Changes"}</Button>
             </div>
