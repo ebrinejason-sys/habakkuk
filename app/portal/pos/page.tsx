@@ -97,7 +97,7 @@ interface StaffMember {
 }
 
 export default function POSPage() {
-  const { data: session: nextAuthSession } = useSession()
+  const { data: nextAuthSession } = useSession()
   const [session, setSession] = useState<any>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
